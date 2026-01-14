@@ -8,7 +8,7 @@ from app.core.permissions import USER_VIEW_ALL, USER_MANAGE_ROLES
 from app.models.user import User
 from app.models.role import Role
 from app.models.user_role import UserRole
-from app.schemas.user import UserResponse
+from app.schemas.user import UserResponse, UserWithRoles
 from pydantic import BaseModel
 
 admin_router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -31,7 +31,7 @@ class RoleChange(BaseModel):
     role_name: str
 
 
-@admin_router.get("/users", response_model=list[UserResponse])
+@admin_router.get("/users", response_model=list[UserWithRoles])
 def list_users(
     skip: int = 0,
     limit: int = 200,
@@ -39,7 +39,33 @@ def list_users(
     current_user: User = Depends(require_permission(USER_VIEW_ALL))
 ):
     """List all users (excluding soft-deleted). Requires USER_VIEW_ALL permission."""
-    return db.query(User).filter(User.is_deleted == False).offset(skip).limit(limit).all()
+    users = db.query(User).filter(User.is_deleted == False).offset(skip).limit(limit).all()
+
+    # Get roles and permissions for each user
+    from app.services.permission_service import get_user_roles, get_user_permissions
+
+    result = []
+    for user in users:
+        roles = get_user_roles(db, user.id)
+        permissions = get_user_permissions(db, user.id)
+
+        # Convert to dict and add roles/permissions
+        user_dict = {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "job_title": user.job_title,
+            "department": user.department,
+            "status": user.status,
+            "created_at": user.created_at,
+            "updated_at": user.updated_at,
+            "roles": roles,
+            "permissions": permissions,
+            "role": roles[0] if roles else "MEMBER"  # Primary role for display
+        }
+        result.append(user_dict)
+
+    return result
 
 
 @admin_router.post("/users/{user_id}/promote-to-pm", status_code=status.HTTP_200_OK)

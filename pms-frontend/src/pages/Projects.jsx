@@ -20,6 +20,7 @@ function Projects() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
+  const [statusFilter, setStatusFilter] = useState(null); // null means all projects
   const [newProject, setNewProject] = useState({
     name: "",
     description: "",
@@ -29,11 +30,11 @@ function Projects() {
 
   useEffect(() => {
     fetchProjects();
-  }, []);
+  }, [statusFilter]);
 
   const fetchProjects = async () => {
     try {
-      const response = await projectsAPI.getAll();
+      const response = await projectsAPI.getAll(0, 100, statusFilter);
       setProjects(response.data);
     } catch (error) {
       console.error("Failed to fetch projects:", error);
@@ -124,6 +125,37 @@ function Projects() {
           {error}
         </Alert>
       )}
+
+      {/* Status Filter Buttons */}
+      <div className="mb-3">
+        <Button
+          variant={statusFilter === null ? "primary" : "outline-primary"}
+          className="me-2"
+          onClick={() => setStatusFilter(null)}
+        >
+          All Projects
+        </Button>
+        <Button
+          variant={statusFilter === "PENDING" ? "primary" : "outline-secondary"}
+          className="me-2"
+          onClick={() => setStatusFilter("PENDING")}
+        >
+          Pending
+        </Button>
+        <Button
+          variant={statusFilter === "IN_PROGRESS" ? "primary" : "outline-warning"}
+          className="me-2"
+          onClick={() => setStatusFilter("IN_PROGRESS")}
+        >
+          In Progress
+        </Button>
+        <Button
+          variant={statusFilter === "COMPLETED" ? "primary" : "outline-success"}
+          onClick={() => setStatusFilter("COMPLETED")}
+        >
+          Completed
+        </Button>
+      </div>
 
       <Row className="g-4">
         {projects.map((project) => (

@@ -147,6 +147,41 @@ def get_project_members(
     ).all()
     return members
 
+@router.get("/user/{user_id}", response_model=List[ProjectMemberResponse])
+def get_user_projects(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get all projects for a user.
+    - ADMIN can view anyone's projects
+    - Users can view their own projects
+    """
+    # Check if admin or viewing own projects
+    if not is_admin(db, current_user.id) and current_user.id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission denied"
+        )
+
+    # Verify user exists
+    user = db.query(User).filter(
+        User.id == user_id,
+        User.is_deleted == False
+    ).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    members = db.query(ProjectMember).filter(
+        ProjectMember.user_id == user_id,
+        ProjectMember.is_deleted == False
+    ).all()
+    return members
+
 @router.delete("/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
 def remove_project_member(
     member_id: int,
@@ -154,7 +189,7 @@ def remove_project_member(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Remove a member from a project. 
+    Remove a member from a project.
     - ADMIN can remove anyone
     - Others need PROJECT_EDIT permission
     """
@@ -164,7 +199,7 @@ def remove_project_member(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Permission denied"
         )
-    
+
     member = db.query(ProjectMember).filter(
         ProjectMember.id == member_id,
         ProjectMember.is_deleted == False
@@ -174,12 +209,12 @@ def remove_project_member(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project member not found"
         )
-    
+
     # Soft delete
     member.is_deleted = True
     member.deleted_at = datetime.utcnow()
     db.commit()
-    
+
     # Log activity
     try:
         create_activity_log(
@@ -191,5 +226,5 @@ def remove_project_member(
         )
     except Exception as e:
         print(f"Warning: Failed to log activity: {e}")
-    
+
     return None

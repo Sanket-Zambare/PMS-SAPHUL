@@ -244,6 +244,33 @@ function ProjectDetails() {
             </Card.Body>
           </Card>
 
+          <Card className="mb-3">
+            <Card.Body>
+              <Card.Title>Project Members</Card.Title>
+              {members.length === 0 ? (
+                <p className="text-muted">No members assigned to this project</p>
+              ) : (
+                <div>
+                  {members.map((member) => {
+                    const memberUser = users.find(u => u.id === member.user_id);
+                    return (
+                      <div key={member.id} className="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                        <div>
+                          <strong>{memberUser ? memberUser.name : `User ${member.user_id}`}</strong>
+                          <br />
+                          <small className="text-muted">{memberUser ? memberUser.email : ''}</small>
+                        </div>
+                        <Badge bg={member.role === 'PROJECT_MANAGER' ? 'warning' : 'secondary'}>
+                          {member.role}
+                        </Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Card.Body>
+          </Card>
+
           <Card>
             <Card.Body>
               <Card.Title>Activity Timeline</Card.Title>

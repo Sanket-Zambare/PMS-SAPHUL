@@ -113,6 +113,8 @@ export const projectsAPI = {
 export const projectMembersAPI = {
   getByProject: (projectId) =>
     USE_MOCK_DATA ? mockAPI.projectMembers.getByProject(projectId) : api.get(`/project-members/project/${projectId}`),
+  getByUser: (userId) =>
+    USE_MOCK_DATA ? mockAPI.projectMembers.getByUser(userId) : api.get(`/project-members/user/${userId}`),
   add: (data) =>
     USE_MOCK_DATA ? mockAPI.projectMembers.add(data) : api.post("/project-members", data),
   remove: (memberId) =>

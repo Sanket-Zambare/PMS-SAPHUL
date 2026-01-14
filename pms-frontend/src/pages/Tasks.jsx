@@ -17,6 +17,7 @@ function Tasks() {
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState(null); // null means all tasks
   const [error, setError] = useState("");
 
   const [showAddModal, setShowAddModal] = useState(false);
@@ -32,12 +33,16 @@ function Tasks() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [statusFilter]);
 
   const fetchData = async () => {
     try {
+      const taskParams = { assigned_to: user?.role === "MEMBER" ? user.id : null };
+      if (statusFilter) {
+        taskParams.status_filter = statusFilter;
+      }
       const [tasksRes, projectsRes, usersRes] = await Promise.all([
-        tasksAPI.getAll({ assigned_to: user?.role === "MEMBER" ? user.id : null }),
+        tasksAPI.getAll(taskParams),
         projectsAPI.getAll(),
         usersAPI.getAll(),
       ]);
@@ -159,6 +164,37 @@ function Tasks() {
           {error}
         </Alert>
       )}
+
+      {/* Status Filter Buttons */}
+      <div className="mb-3">
+        <Button
+          variant={statusFilter === null ? "primary" : "outline-primary"}
+          className="me-2"
+          onClick={() => setStatusFilter(null)}
+        >
+          All Tasks
+        </Button>
+        <Button
+          variant={statusFilter === "TODO" ? "primary" : "outline-secondary"}
+          className="me-2"
+          onClick={() => setStatusFilter("TODO")}
+        >
+          Todo
+        </Button>
+        <Button
+          variant={statusFilter === "IN_PROGRESS" ? "primary" : "outline-warning"}
+          className="me-2"
+          onClick={() => setStatusFilter("IN_PROGRESS")}
+        >
+          In Progress
+        </Button>
+        <Button
+          variant={statusFilter === "DONE" ? "primary" : "outline-success"}
+          onClick={() => setStatusFilter("DONE")}
+        >
+          Done
+        </Button>
+      </div>
 
       <Table bordered hover responsive className="mt-3">
         <thead>
