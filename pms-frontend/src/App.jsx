@@ -5,6 +5,7 @@ import Sidebars from "./components/Sidebars";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
 import ProjectDetails from "./pages/ProjectDetails";
@@ -45,6 +46,10 @@ function AppRoutes() {
         <Route
           path="/forgot-password"
           element={isAuthenticated ? <Navigate to="/" replace /> : <ForgotPassword />}
+        />
+        <Route
+          path="/reset-password"
+          element={isAuthenticated ? <Navigate to="/" replace /> : <ResetPassword />}
         />
         <Route
           path="/"

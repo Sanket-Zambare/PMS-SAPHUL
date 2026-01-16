@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.database import engine
+from app.routes.invitations import router as invitations
 from app.models import Base
 from app.routes import (
     auth,
@@ -46,6 +47,7 @@ app.include_router(approvals)
 app.include_router(project_files)
 app.include_router(activity_logs)
 app.include_router(dashboard)
+app.include_router(invitations)
 
 # Exception handlers
 @app.exception_handler(Exception)

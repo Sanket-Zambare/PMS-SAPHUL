@@ -10,6 +10,7 @@ from .approvals import router as approvals
 from .project_files import router as project_files
 from .activity_logs import router as activity_logs
 from .dashboard import router as dashboard
+from .invitations import router as invitations
 
 
 

@@ -19,6 +19,7 @@ from app.models.user import User, UserStatus
 from app.models.role import Role
 from app.models.user_role import UserRole as UserRoleModel
 from app.services.permission_service import get_user_permissions
+from app.services.email_service import email_service
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -120,7 +121,13 @@ async def signup(
     except Exception as e:
         print(f"Warning: Could not assign MEMBER role: {e}")
         db.rollback()
-    
+
+    # Send signup confirmation email (best-effort)
+    try:
+        email_service.send_signup_email(user.email, user.name)
+    except Exception as e:
+        print(f"Warning: Could not send signup confirmation email: {e}")
+
     return user
 
 @router.post("/login", response_model=Token)
@@ -191,34 +198,32 @@ async def forgot_password(
     db: Session = Depends(get_db)
 ):
     """
-    Request password reset. Generates a token and sends email (email sending not implemented).
+    Request password reset. Generates a token and sends email.
     """
     user = db.query(User).filter(
         User.email == request.email,
         User.is_deleted == False
     ).first()
-    
-    if not user:
-        # Don't reveal if email exists for security
-        return {
-            "message": "If an account with this email exists, a password reset link has been sent."
+
+    if user:
+        # Generate reset token
+        reset_token = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(32))
+        password_reset_tokens[reset_token] = {
+            "user_id": user.id,
+            "email": user.email,
+            "expires_at": datetime.utcnow() + timedelta(hours=1)
         }
-    
-    # Generate reset token
-    reset_token = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(32))
-    password_reset_tokens[reset_token] = {
-        "user_id": user.id,
-        "email": user.email,
-        "expires_at": datetime.utcnow() + timedelta(hours=1)
-    }
-    
-    # TODO: Send email with reset link
-    # For now, return token (in production, send via email)
-    print(f"Password reset token for {user.email}: {reset_token}")
-    
+
+        # print("RESET TOKEN:", reset_token) 
+
+        # Send email (non-blocking, crash-safe)
+        try:
+            email_service.send_password_reset_email(user.email, reset_token, user.name)
+        except Exception as e:
+            logging.error(f"Failed to send password reset email to {user.email}: {e}")
+
     return {
-        "message": "If an account with this email exists, a password reset link has been sent.",
-        "token": reset_token  # Remove this in production, send via email
+        "message": "If an account with this email exists, a password reset link has been sent."
     }
 
 @router.post("/reset-password")
@@ -235,7 +240,7 @@ async def reset_password(
     if not token_data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired reset token"
+            detail="Invalid reset token"
         )
     
     if datetime.utcnow() > token_data["expires_at"]:
@@ -246,11 +251,14 @@ async def reset_password(
         )
     
     # Update user password
-    user = db.query(User).filter(User.id == token_data["user_id"]).first()
+    user = db.query(User).filter(
+        User.id == token_data["user_id"],
+        User.is_deleted == False
+    ).first()
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid reset token"
         )
     
     user.password = get_password_hash(reset_data.new_password)
