@@ -88,11 +88,29 @@ def get_users(
     """
     Get users.
     - If user has USER_VIEW_ALL -> return all
-    - Else return only current user
+    - Else return users from projects they are assigned to (for task assignment display)
     """
     if has_permission(db, current_user.id, USER_VIEW_ALL):
         return db.query(User).filter(User.is_deleted == False).offset(skip).limit(limit).all()
-    return [current_user]
+
+    # Return users from projects the current user is assigned to
+    from app.models.project_member import ProjectMember
+    user_project_ids = db.query(ProjectMember.project_id).filter(
+        ProjectMember.user_id == current_user.id,
+        ProjectMember.is_deleted == False
+    ).subquery()
+
+    project_users = db.query(User).join(ProjectMember).filter(
+        ProjectMember.project_id.in_(user_project_ids),
+        User.is_deleted == False,
+        ProjectMember.is_deleted == False
+    ).distinct().all()
+
+    # Include current user if not already included
+    if current_user not in project_users:
+        project_users.append(current_user)
+
+    return project_users
 
 @router.get("/admin/users", response_model=List[UserResponse])
 def get_all_users_admin(

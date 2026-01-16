@@ -20,13 +20,13 @@ const ProtectedRoute = ({ children, requiredPermission = null, requiredPermissio
   // Check permissions if specified
   if (requiredPermission) {
     if (!hasPermission(permissions, requiredPermission)) {
-      return <Navigate to="/" replace />;
+      return <Navigate to="/login" replace />;
     }
   }
 
   if (requiredPermissions.length > 0) {
     if (!hasAnyPermission(permissions, requiredPermissions)) {
-      return <Navigate to="/" replace />;
+      return <Navigate to="/login" replace />;
     }
   }
 

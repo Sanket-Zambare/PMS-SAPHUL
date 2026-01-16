@@ -34,9 +34,23 @@ from app.services.permission_service import has_permission
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
+def is_admin(db: Session, user_id: int) -> bool:
+    """Check if user is admin."""
+    from app.models.role import Role
+    from app.models.user_role import UserRole as UserRoleModel
+
+    admin_role = db.query(Role).filter(Role.name == "ADMIN").first()
+    if admin_role:
+        user_role = db.query(UserRoleModel).filter(
+            UserRoleModel.user_id == user_id,
+            UserRoleModel.role_id == admin_role.id
+        ).first()
+        return user_role is not None
+    return False
+
 def has_global_project_view(db: Session, user_id: int) -> bool:
     """Check if user has global project view (admin equivalent)."""
-    return has_permission(db, user_id, PROJECT_VIEW_ALL)
+    return is_admin(db, user_id)
 
 def can_access_project(db: Session, user_id: int, project_id: int) -> bool:
     """Check if user can access a project (admin or project member)."""
@@ -120,13 +134,14 @@ def create_task(
             performed_by=current_user.id
         )
     except Exception as e:
-        print(f"Warning: Failed to log activity: {e}")
+        pass
     
     return task
 
 @router.get("/", response_model=List[TaskResponse])
 def get_tasks(
     project_id: int = None,
+    project_ids: str = None,
     sprint_id: int = None,
     assigned_to: int = None,
     status_filter: TaskStatus = None,
@@ -136,40 +151,64 @@ def get_tasks(
     current_user: User = Depends(require_permission(TASK_VIEW))
 ):
     """
-    Get tasks. 
-    - ADMIN sees all tasks
-    - Others see only tasks from projects they are members of
+    Get tasks.
+    - All users see only tasks from projects they are members of
     - Can filter by assigned_to to see only own tasks
+    - Can filter by project_ids (comma-separated) for multiple projects
     """
-    # Check if user has global project view (admin-equivalent)
+    # Check if user is admin - they can see all tasks
     if has_global_project_view(db, current_user.id):
         query = db.query(Task).filter(Task.is_deleted == False)
     else:
-        # Others see only tasks from their projects
-        project_ids = db.query(ProjectMember.project_id).filter(
+        # Non-admin users see only tasks from their projects
+        user_project_ids = db.query(ProjectMember.project_id).filter(
             ProjectMember.user_id == current_user.id,
             ProjectMember.is_deleted == False
-        ).subquery()
+        ).all()
+        user_project_id_list = [pm.project_id for pm in user_project_ids]
+
+        if not user_project_id_list:
+            # User has no project memberships
+            return []
+
         query = db.query(Task).filter(
-            Task.project_id.in_(project_ids),
+            Task.project_id.in_(user_project_id_list),
             Task.is_deleted == False
         )
-    
+
     if project_id:
-        # Verify access to this project
-        if not can_access_project(db, current_user.id, project_id):
+        # Verify access to this project (for non-admin users)
+        if not has_global_project_view(db, current_user.id) and not can_access_project(db, current_user.id, project_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You do not have access to this project"
             )
         query = query.filter(Task.project_id == project_id)
+    if project_ids:
+        # Handle multiple project IDs (comma-separated)
+        try:
+            project_id_list = [int(pid.strip()) for pid in project_ids.split(',') if pid.strip()]
+            # Verify access to all projects (for non-admin users)
+            if not has_global_project_view(db, current_user.id):
+                for pid in project_id_list:
+                    if not can_access_project(db, current_user.id, pid):
+                        raise HTTPException(
+                            status_code=status.HTTP_403_FORBIDDEN,
+                            detail=f"You do not have access to project {pid}"
+                        )
+            query = query.filter(Task.project_id.in_(project_id_list))
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid project_ids format"
+            )
     if sprint_id:
         query = query.filter(Task.sprint_id == sprint_id)
     if assigned_to:
         query = query.filter(Task.assigned_to == assigned_to)
     if status_filter:
         query = query.filter(Task.status == status_filter)
-    
+
     tasks = query.offset(skip).limit(limit).all()
     return tasks
 
@@ -239,14 +278,23 @@ def update_task(
             detail="Only assigned members can update this task"
         )
     
-    # If not admin/pm, only allow status/progress updates
+    # If not admin/pm, only allow status updates to specific values
     if not has_edit_permission and is_assigned:
-        # Only allow status and review_status updates
+        # Only allow status updates for assigned members
         update_data = task_data.dict(exclude_unset=True)
-        allowed_fields = ['status', 'review_status']
+        allowed_fields = ['status']
         for field in list(update_data.keys()):
             if field not in allowed_fields:
                 del update_data[field]
+
+        # Validate status value - only allow TODO, IN_PROGRESS, BLOCKED, DONE
+        if 'status' in update_data:
+            allowed_statuses = [TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.BLOCKED, TaskStatus.DONE]
+            if update_data['status'] not in allowed_statuses:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Members can only change status to TODO, IN_PROGRESS, BLOCKED, or DONE"
+                )
     else:
         update_data = task_data.dict(exclude_unset=True)
     
@@ -256,7 +304,16 @@ def update_task(
     # Update fields
     for field, value in update_data.items():
         setattr(task, field, value)
-    
+
+    # Auto-set progress based on status for assigned members
+    if not has_edit_permission and is_assigned:
+        if task.status == TaskStatus.TODO:
+            task.progress = Decimal("0.00")
+        elif task.status == TaskStatus.IN_PROGRESS:
+            task.progress = Decimal("50.00")
+        elif task.status == TaskStatus.DONE:
+            task.progress = Decimal("100.00")
+
     # Set completed_at if status changed to DONE
     if task.status == TaskStatus.DONE and not task.completed_at:
         task.completed_at = datetime.utcnow()
@@ -275,7 +332,7 @@ def update_task(
             performed_by=current_user.id
         )
     except Exception as e:
-        print(f"Warning: Failed to log activity: {e}")
+        pass
     
     return task
 
@@ -368,6 +425,7 @@ def approve_task(
     
     task.review_status = TaskReviewStatus.APPROVED
     task.approval_status = TaskApprovalStatus.APPROVED
+    task.progress = Decimal("100.00")  # Automatically set progress to 100% on approval
     task.reviewed_at = datetime.utcnow()
     task.reviewed_by = current_user.id
     db.commit()
@@ -383,7 +441,7 @@ def approve_task(
             performed_by=current_user.id
         )
     except Exception as e:
-        print(f"Warning: Failed to log activity: {e}")
+        pass
     
     return task
 
@@ -428,7 +486,7 @@ def reject_task(
             performed_by=current_user.id
         )
     except Exception as e:
-        print(f"Warning: Failed to log activity: {e}")
+        pass
     
     return task
 
@@ -471,6 +529,6 @@ def delete_task(
             performed_by=current_user.id
         )
     except Exception as e:
-        print(f"Warning: Failed to log activity: {e}")
+        pass
     
     return None

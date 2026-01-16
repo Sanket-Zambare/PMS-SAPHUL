@@ -16,6 +16,7 @@ class TaskBase(BaseModel):
     start_date: Optional[date] = None
     due_date: Optional[date] = None
     estimated_hours: Optional[Decimal] = None
+    progress: Optional[Decimal] = 0.00
     billable: Optional[bool] = False
     billing_rate: Optional[Decimal] = None
 
@@ -36,6 +37,7 @@ class TaskUpdate(BaseModel):
     start_date: Optional[date] = None
     due_date: Optional[date] = None
     estimated_hours: Optional[Decimal] = None
+    progress: Optional[Decimal] = None
     billable: Optional[bool] = None
     billing_rate: Optional[Decimal] = None
 
@@ -46,6 +48,7 @@ class TaskResponse(TaskBase):
     review_status: TaskReviewStatus
     approval_status: TaskApprovalStatus
     actual_hours: Optional[Decimal] = None
+    progress: Decimal
     review_requested_at: Optional[datetime] = None
     reviewed_at: Optional[datetime] = None
     reviewed_by: Optional[int] = None

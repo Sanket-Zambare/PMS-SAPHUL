@@ -7,14 +7,22 @@ import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import { useAuth } from "../context/AuthContext";
 import { dashboardAPI } from "../services/api";
+import { hasPermission } from "../utils/permissions";
 
 function Dashboard() {
-  const { user } = useAuth();
+  const { user, permissions } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const canViewDashboard = hasPermission(permissions, "DASHBOARD_VIEW");
+
   useEffect(() => {
+    if (!canViewDashboard) {
+      setLoading(false);
+      return;
+    }
+
     const fetchStats = async () => {
       try {
         const response = await dashboardAPI.getStats();
@@ -27,12 +35,48 @@ function Dashboard() {
     };
 
     fetchStats();
-  }, []);
+  }, [canViewDashboard]);
 
   if (loading) {
     return (
       <Container fluid className="mt-3">
         <div>Loading...</div>
+      </Container>
+    );
+  }
+
+  if (!canViewDashboard) {
+    return (
+      <Container fluid className="mt-3">
+        <h1>Welcome</h1>
+        <p className="text-muted">
+          Welcome, {user?.name} ({user?.role})
+        </p>
+        <p>You can access the following sections:</p>
+        <Row className="g-4">
+          <Col md={4}>
+            <Card className="h-100">
+              <Card.Body>
+                <Card.Title>Projects</Card.Title>
+                <Card.Text>View and manage your projects</Card.Text>
+                <Button variant="primary" onClick={() => navigate("/projects")}>
+                  Go to Projects
+                </Button>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col md={4}>
+            <Card className="h-100">
+              <Card.Body>
+                <Card.Title>Tasks</Card.Title>
+                <Card.Text>View and manage your tasks</Card.Text>
+                <Button variant="primary" onClick={() => navigate("/tasks")}>
+                  Go to Tasks
+                </Button>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
       </Container>
     );
   }

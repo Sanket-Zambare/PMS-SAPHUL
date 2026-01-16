@@ -133,6 +133,7 @@ def seed_database():
         pm_permissions = [
             "PROJECT_VIEW_ASSIGNED",
             "TASK_CREATE", "TASK_VIEW", "TASK_EDIT", "TASK_APPROVE",
+            "USER_VIEW",
             "TIME_LOG_CREATE",
             "SPRINT_CREATE", "SPRINT_VIEW", "SPRINT_EDIT", "SPRINT_DELETE",
             "DASHBOARD_VIEW",
@@ -154,6 +155,7 @@ def seed_database():
         member_permissions = [
             "PROJECT_VIEW_ASSIGNED",
             "TASK_VIEW",
+            "USER_VIEW",
             "TIME_LOG_CREATE",
             "DASHBOARD_VIEW",
         ]
@@ -280,93 +282,137 @@ def seed_database():
         # Step 5: Create Projects
         print("\n5. Creating projects...")
         admin_user = created_users[0][0]
-        projects = [
-            Project(
-                name="Website Redesign",
-                description="Complete redesign of the company website with modern UI/UX",
-                methodology=ProjectMethodology.AGILE,
-                status=ProjectStatus.IN_PROGRESS,
-                review_status=ReviewStatus.PENDING,
-                created_by=admin_user.id,
-                start_date=date.today() - timedelta(days=10),
-                end_date=date.today() + timedelta(days=50),
-            ),
-            Project(
-                name="Mobile App Development",
-                description="Develop a cross-platform mobile application",
-                methodology=ProjectMethodology.AGILE,
-                status=ProjectStatus.PENDING,
-                review_status=ReviewStatus.PENDING,
-                created_by=admin_user.id,
-            ),
-            Project(
-                name="Legacy System Migration",
-                description="Migrate legacy system to new architecture",
-                methodology=ProjectMethodology.WATERFALL,
-                status=ProjectStatus.IN_PROGRESS,
-                review_status=ReviewStatus.PENDING,
-                created_by=admin_user.id,
-                start_date=date.today() - timedelta(days=15),
-                end_date=date.today() + timedelta(days=30),
-            ),
+        projects_data = [
+            {
+                "name": "Website Redesign",
+                "description": "Complete redesign of the company website with modern UI/UX",
+                "methodology": ProjectMethodology.AGILE,
+                "status": ProjectStatus.IN_PROGRESS,
+                "review_status": ReviewStatus.PENDING,
+                "created_by": admin_user.id,
+                "start_date": date.today() - timedelta(days=10),
+                "end_date": date.today() + timedelta(days=50),
+            },
+            {
+                "name": "Mobile App Development",
+                "description": "Develop a cross-platform mobile application",
+                "methodology": ProjectMethodology.AGILE,
+                "status": ProjectStatus.PENDING,
+                "review_status": ReviewStatus.PENDING,
+                "created_by": admin_user.id,
+            },
+            {
+                "name": "Legacy System Migration",
+                "description": "Migrate legacy system to new architecture",
+                "methodology": ProjectMethodology.WATERFALL,
+                "status": ProjectStatus.IN_PROGRESS,
+                "review_status": ReviewStatus.PENDING,
+                "created_by": admin_user.id,
+                "start_date": date.today() - timedelta(days=15),
+                "end_date": date.today() + timedelta(days=30),
+            },
         ]
-        
-        for project in projects:
-            db.add(project)
-        db.commit()
-        for project in projects:
-            db.refresh(project)
-        print(f"   ✓ Created {len(projects)} projects")
+
+        projects = []
+        for project_data in projects_data:
+            existing_project = db.query(Project).filter(
+                Project.name == project_data["name"],
+                Project.is_deleted == False
+            ).first()
+
+            if not existing_project:
+                project = Project(**project_data)
+                db.add(project)
+                db.commit()
+                db.refresh(project)
+                projects.append(project)
+            else:
+                projects.append(existing_project)
+
+        print(f"   ✓ Found/Created {len(projects)} projects")
         
         # Step 6: Create Project Members
         print("\n6. Creating project members...")
         pm_user = created_users[1][0]
         member_user = created_users[2][0]
-        
-        project_members = [
-            ProjectMember(
-                project_id=projects[0].id,
-                user_id=pm_user.id,
-                role=ProjectMemberRole.PROJECT_MANAGER
-            ),
-            ProjectMember(
-                project_id=projects[0].id,
-                user_id=member_user.id,
-                role=ProjectMemberRole.MEMBER
-            ),
-            ProjectMember(
-                project_id=projects[1].id,
-                user_id=pm_user.id,
-                role=ProjectMemberRole.PROJECT_MANAGER
-            ),
+        client_user = created_users[4][0]  # Client user
+
+        project_members_data = [
+            {
+                "project_id": projects[0].id,
+                "user_id": pm_user.id,
+                "role": ProjectMemberRole.PROJECT_MANAGER
+            },
+            {
+                "project_id": projects[0].id,
+                "user_id": member_user.id,
+                "role": ProjectMemberRole.MEMBER
+            },
+            {
+                "project_id": projects[0].id,
+                "user_id": client_user.id,
+                "role": ProjectMemberRole.CLIENT
+            },
+            {
+                "project_id": projects[1].id,
+                "user_id": pm_user.id,
+                "role": ProjectMemberRole.PROJECT_MANAGER
+            },
+            {
+                "project_id": projects[1].id,
+                "user_id": client_user.id,
+                "role": ProjectMemberRole.CLIENT
+            },
         ]
-        
-        for member in project_members:
-            db.add(member)
+
+        project_members = []
+        for member_data in project_members_data:
+            existing_member = db.query(ProjectMember).filter(
+                ProjectMember.project_id == member_data["project_id"],
+                ProjectMember.user_id == member_data["user_id"],
+                ProjectMember.role == member_data["role"],
+                ProjectMember.is_deleted == False
+            ).first()
+
+            if not existing_member:
+                member = ProjectMember(**member_data)
+                db.add(member)
+                project_members.append(member)
+
         db.commit()
         print(f"   ✓ Created {len(project_members)} project members")
         
         # Step 7: Create Sprints (for Agile projects)
         print("\n7. Creating sprints...")
-        sprints = [
-            Sprint(
-                project_id=projects[0].id,
-                name="Sprint 1 - Foundation",
-                start_date=date.today() - timedelta(days=7),
-                end_date=date.today() + timedelta(days=7),
-                status="ACTIVE"
-            ),
-            Sprint(
-                project_id=projects[0].id,
-                name="Sprint 2 - Features",
-                start_date=date.today() + timedelta(days=8),
-                end_date=date.today() + timedelta(days=22),
-                status="PLANNED"
-            ),
+        sprints_data = [
+            {
+                "project_id": projects[0].id,
+                "name": "Sprint 1 - Foundation",
+                "start_date": date.today() - timedelta(days=7),
+                "end_date": date.today() + timedelta(days=7),
+                "status": "ACTIVE"
+            },
+            {
+                "project_id": projects[0].id,
+                "name": "Sprint 2 - Features",
+                "start_date": date.today() + timedelta(days=8),
+                "end_date": date.today() + timedelta(days=22),
+                "status": "PLANNED"
+            },
         ]
-        
-        for sprint in sprints:
-            db.add(sprint)
+
+        sprints = []
+        for sprint_data in sprints_data:
+            existing_sprint = db.query(Sprint).filter(
+                Sprint.name == sprint_data["name"],
+                Sprint.project_id == sprint_data["project_id"]
+            ).first()
+
+            if not existing_sprint:
+                sprint = Sprint(**sprint_data)
+                db.add(sprint)
+                sprints.append(sprint)
+
         db.commit()
         for sprint in sprints:
             db.refresh(sprint)
@@ -374,61 +420,72 @@ def seed_database():
         
         # Step 8: Create Tasks
         print("\n8. Creating tasks...")
-        tasks = [
-            Task(
-                project_id=projects[0].id,
-                sprint_id=sprints[0].id,
-                backlog_order=1,
-                title="Design Homepage Layout",
-                description="Create wireframes and mockups",
-                assigned_to=member_user.id,
-                created_by=pm_user.id,
-                status=TaskStatus.IN_PROGRESS,
-                review_status=TaskReviewStatus.NONE,
-                approval_status=TaskApprovalStatus.NONE,
-                priority=TaskPriority.HIGH,
-                due_date=date.today() + timedelta(days=7),
-                estimated_hours=Decimal("8.0"),
-                billable=True,
-                billing_rate=Decimal("100.00"),
-            ),
-            Task(
-                project_id=projects[0].id,
-                sprint_id=sprints[0].id,
-                backlog_order=2,
-                title="Implement Authentication",
-                description="Set up JWT-based authentication",
-                assigned_to=member_user.id,
-                created_by=pm_user.id,
-                status=TaskStatus.DONE,
-                review_status=TaskReviewStatus.APPROVED,
-                approval_status=TaskApprovalStatus.APPROVED,
-                priority=TaskPriority.HIGH,
-                due_date=date.today() - timedelta(days=2),
-                completed_at=datetime.utcnow() - timedelta(days=2),
-                estimated_hours=Decimal("16.0"),
-                actual_hours=Decimal("14.5"),
-                billable=True,
-                billing_rate=Decimal("100.00"),
-            ),
-            Task(
-                project_id=projects[1].id,
-                backlog_order=1,
-                title="Setup Development Environment",
-                description="Configure React Native environment",
-                assigned_to=member_user.id,
-                created_by=pm_user.id,
-                status=TaskStatus.TODO,
-                review_status=TaskReviewStatus.NONE,
-                approval_status=TaskApprovalStatus.NONE,
-                priority=TaskPriority.MEDIUM,
-                due_date=date.today() + timedelta(days=20),
-                estimated_hours=Decimal("4.0"),
-            ),
+        tasks_data = [
+            {
+                "project_id": projects[0].id,
+                "sprint_id": sprints[0].id,
+                "backlog_order": 1,
+                "title": "Design Homepage Layout",
+                "description": "Create wireframes and mockups",
+                "assigned_to": member_user.id,
+                "created_by": pm_user.id,
+                "status": TaskStatus.IN_PROGRESS,
+                "review_status": TaskReviewStatus.NONE,
+                "approval_status": TaskApprovalStatus.NONE,
+                "priority": TaskPriority.HIGH,
+                "due_date": date.today() + timedelta(days=7),
+                "estimated_hours": Decimal("8.0"),
+                "billable": True,
+                "billing_rate": Decimal("100.00"),
+            },
+            {
+                "project_id": projects[0].id,
+                "sprint_id": sprints[0].id,
+                "backlog_order": 2,
+                "title": "Implement Authentication",
+                "description": "Set up JWT-based authentication",
+                "assigned_to": member_user.id,
+                "created_by": pm_user.id,
+                "status": TaskStatus.DONE,
+                "review_status": TaskReviewStatus.APPROVED,
+                "approval_status": TaskApprovalStatus.APPROVED,
+                "priority": TaskPriority.HIGH,
+                "due_date": date.today() - timedelta(days=2),
+                "completed_at": datetime.utcnow() - timedelta(days=2),
+                "estimated_hours": Decimal("16.0"),
+                "actual_hours": Decimal("14.5"),
+                "billable": True,
+                "billing_rate": Decimal("100.00"),
+            },
+            {
+                "project_id": projects[1].id,
+                "backlog_order": 1,
+                "title": "Setup Development Environment",
+                "description": "Configure React Native environment",
+                "assigned_to": member_user.id,
+                "created_by": pm_user.id,
+                "status": TaskStatus.TODO,
+                "review_status": TaskReviewStatus.NONE,
+                "approval_status": TaskApprovalStatus.NONE,
+                "priority": TaskPriority.MEDIUM,
+                "due_date": date.today() + timedelta(days=20),
+                "estimated_hours": Decimal("4.0"),
+            },
         ]
-        
-        for task in tasks:
-            db.add(task)
+
+        tasks = []
+        for task_data in tasks_data:
+            existing_task = db.query(Task).filter(
+                Task.title == task_data["title"],
+                Task.project_id == task_data["project_id"],
+                Task.is_deleted == False
+            ).first()
+
+            if not existing_task:
+                task = Task(**task_data)
+                db.add(task)
+                tasks.append(task)
+
         db.commit()
         for task in tasks:
             db.refresh(task)
@@ -467,29 +524,41 @@ def seed_database():
         
         # Step 10: Create Activity Logs
         print("\n10. Creating activity logs...")
-        activity_logs = [
-            ActivityLog(
-                entity_type=EntityType.PROJECT,
-                entity_id=projects[0].id,
-                action="create",
-                performed_by=admin_user.id,
-            ),
-            ActivityLog(
-                entity_type=EntityType.TASK,
-                entity_id=tasks[0].id,
-                action="create",
-                performed_by=pm_user.id,
-            ),
-            ActivityLog(
-                entity_type=EntityType.TASK,
-                entity_id=tasks[1].id,
-                action="update",
-                performed_by=member_user.id,
-            ),
+        activity_logs_data = [
+            {
+                "entity_type": EntityType.PROJECT,
+                "entity_id": projects[0].id,
+                "action": "create",
+                "performed_by": admin_user.id,
+            },
+            {
+                "entity_type": EntityType.TASK,
+                "entity_id": tasks[0].id,
+                "action": "create",
+                "performed_by": pm_user.id,
+            },
+            {
+                "entity_type": EntityType.TASK,
+                "entity_id": tasks[1].id,
+                "action": "update",
+                "performed_by": member_user.id,
+            },
         ]
-        
-        for log in activity_logs:
-            db.add(log)
+
+        activity_logs = []
+        for log_data in activity_logs_data:
+            existing_log = db.query(ActivityLog).filter(
+                ActivityLog.entity_type == log_data["entity_type"],
+                ActivityLog.entity_id == log_data["entity_id"],
+                ActivityLog.action == log_data["action"],
+                ActivityLog.performed_by == log_data["performed_by"]
+            ).first()
+
+            if not existing_log:
+                log = ActivityLog(**log_data)
+                db.add(log)
+                activity_logs.append(log)
+
         db.commit()
         print(f"   ✓ Created {len(activity_logs)} activity logs")
         

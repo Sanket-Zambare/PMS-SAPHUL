@@ -28,12 +28,16 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    console.log("AuthContext useEffect start");
     // Check if user is logged in
     const token = localStorage.getItem("token");
     const savedUser = localStorage.getItem("user");
     const savedPermissions = localStorage.getItem("permissions");
 
+    console.log("Token:", !!token, "SavedUser:", !!savedUser);
+
     if (token && savedUser) {
+      console.log("Token and user found, verifying");
       try {
         setUser(JSON.parse(savedUser));
         if (savedPermissions) {
@@ -42,6 +46,7 @@ export const AuthProvider = ({ children }) => {
         // Verify token is still valid and get fresh permissions
         authAPI.getCurrentUser()
           .then(async (response) => {
+            console.log("getCurrentUser success");
             setUser(response.data);
             localStorage.setItem("user", JSON.stringify(response.data));
 
@@ -56,7 +61,8 @@ export const AuthProvider = ({ children }) => {
               console.warn("Could not decode permissions from token:", error);
             }
           })
-          .catch(() => {
+          .catch((error) => {
+            console.log("getCurrentUser failed:", error);
             // Token invalid, clear storage
             localStorage.removeItem("token");
             localStorage.removeItem("user");
@@ -64,8 +70,12 @@ export const AuthProvider = ({ children }) => {
             setUser(null);
             setPermissions([]);
           })
-          .finally(() => setLoading(false));
+          .finally(() => {
+            console.log("Setting loading to false");
+            setLoading(false);
+          });
       } catch (error) {
+        console.log("Error in try block:", error);
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         localStorage.removeItem("permissions");
@@ -74,6 +84,7 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
       }
     } else {
+      console.log("No token or user, setting loading to false");
       setLoading(false);
     }
   }, []);

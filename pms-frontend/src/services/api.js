@@ -83,6 +83,11 @@ export const adminUsersAPI = {
   demoteToMember: (userId) => api.post(`/admin/users/${userId}/demote-to-member`),
 };
 
+// Admin Projects API
+export const adminProjectsAPI = {
+  create: (data) => api.post("/admin/projects", data),
+};
+
 // Projects API
 export const projectsAPI = {
   getAll: (skip = 0, limit = 100, status = null) => {
@@ -133,7 +138,7 @@ export const tasksAPI = {
         queryParams.append(key, value);
       }
     });
-    return api.get(`/tasks?${queryParams}`);
+    return api.get(`/tasks/?${queryParams}`);
   },
   getById: (id) =>
     USE_MOCK_DATA ? mockAPI.tasks.getById(id) : api.get(`/tasks/${id}`),

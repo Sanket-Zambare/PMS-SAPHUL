@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
 import ProjectDetails from "./pages/ProjectDetails";
 import Tasks from "./pages/Tasks";
+import TaskDetails from "./pages/TaskDetails";
 import Users from "./pages/Users";
 import "bootstrap/dist/css/bootstrap.min.css";
 
@@ -26,9 +27,14 @@ function Layout() {
 function AppRoutes() {
   const { isAuthenticated, loading } = useAuth();
 
+  console.log("AppRoutes rendering, loading:", loading, "isAuthenticated:", isAuthenticated);
+
   if (loading) {
+    console.log("Showing loading");
     return <div>Loading...</div>;
   }
+
+  console.log("Not loading, isAuthenticated:", isAuthenticated);
 
   return (
     <Router>
@@ -48,7 +54,7 @@ function AppRoutes() {
         <Route
           path="/"
           element={
-            <ProtectedRoute requiredPermission="DASHBOARD_VIEW">
+            <ProtectedRoute>
               <Layout />
             </ProtectedRoute>
           }
@@ -57,6 +63,7 @@ function AppRoutes() {
           <Route path="projects" element={<Projects />} />
           <Route path="projects/:id" element={<ProjectDetails />} />
           <Route path="tasks" element={<Tasks />} />
+          <Route path="tasks/:id" element={<TaskDetails />} />
           <Route path="users" element={<Users />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
@@ -66,11 +73,16 @@ function AppRoutes() {
 }
 
 function App() {
-  return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
-  );
+  try {
+    return (
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    );
+  } catch (error) {
+    console.error("Error in App:", error);
+    return <div>Error: {error.message}</div>;
+  }
 }
 
 export default App;

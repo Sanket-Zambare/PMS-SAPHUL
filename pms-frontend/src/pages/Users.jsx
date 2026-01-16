@@ -26,10 +26,26 @@ function Users() {
     role: "MEMBER"
   });
 
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredUsers, setFilteredUsers] = useState([]);
+
   useEffect(() => {
     fetchUsers();
     fetchProjects();
   }, []);
+
+  useEffect(() => {
+    // Filter users based on search term
+    if (searchTerm.trim() === "") {
+      setFilteredUsers(users);
+    } else {
+      const filtered = users.filter(user =>
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredUsers(filtered);
+    }
+  }, [users, searchTerm]);
 
   const fetchUsers = async () => {
     try {
@@ -118,6 +134,23 @@ function Users() {
     }
   };
 
+  const handleRemoveFromProject = async (memberId) => {
+    if (!window.confirm("Are you sure you want to remove this user from the project?")) {
+      return;
+    }
+
+    try {
+      await projectMembersAPI.remove(memberId);
+      setError("");
+      // Refresh user projects data
+      await fetchUserProjects(users);
+    } catch (error) {
+      setError(error.response?.data?.detail || "Failed to remove user from project");
+    }
+  };
+
+
+
   const openAssignModal = (user) => {
     setSelectedUser(user);
     setShowAssignModal(true);
@@ -156,6 +189,16 @@ function Users() {
         </div>
       </div>
 
+      {/* Search Bar */}
+      <div className="mb-3">
+        <Form.Control
+          type="text"
+          placeholder="Search users by name or email..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+
       {error && (
         <Alert variant="danger" dismissible onClose={() => setError("")}>
           {error}
@@ -174,7 +217,7 @@ function Users() {
           </tr>
         </thead>
         <tbody>
-          {users.map((u) => (
+          {filteredUsers.map((u) => (
             <tr key={u.id}>
               <td>{u.name}</td>
               <td>
@@ -224,11 +267,20 @@ function Users() {
                     {userProjects[u.id].map((assignment) => {
                       const project = projects.find(p => p.id === assignment.project_id);
                       return (
-                        <div key={assignment.id} className="mb-1">
+                        <div key={assignment.id} className="mb-1 d-flex align-items-center">
                           <Badge bg="info" className="me-1">
                             {project ? project.name : `Project ${assignment.project_id}`}
                           </Badge>
-                          <small>({assignment.role})</small>
+                          <small className="me-2">({assignment.role})</small>
+                          <Button
+                            size="sm"
+                            variant="outline-danger"
+                            className="btn-sm py-0 px-1"
+                            onClick={() => handleRemoveFromProject(assignment.id)}
+                            title="Remove from project"
+                          >
+                            ×
+                          </Button>
                         </div>
                       );
                     })}
@@ -295,6 +347,8 @@ function Users() {
           </Button>
         </Modal.Footer>
       </Modal>
+
+
     </Container>
   );
 }

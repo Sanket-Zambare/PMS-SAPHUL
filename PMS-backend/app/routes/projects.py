@@ -5,12 +5,14 @@ Projects are only visible to assigned members (except ADMIN who sees all).
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import exists
 from typing import List
 from datetime import datetime
 from app.core.security import (
-    get_db, 
-    get_current_user, 
+    get_db,
+    get_current_user,
     require_permission,
+    require_any_permission,
 )
 from app.core.permissions import (
     PROJECT_CREATE,
@@ -27,13 +29,27 @@ from app.models.user import User
 from app.models.project_member import ProjectMember
 from app.services.activity_log_service import create_activity_log
 from app.models.activity_log import EntityType
-from app.services.permission_service import has_permission
+from app.services.permission_service import has_permission, has_any_permission
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
+def is_admin(db: Session, user_id: int) -> bool:
+    """Check if user is admin."""
+    from app.models.role import Role
+    from app.models.user_role import UserRole as UserRoleModel
+
+    admin_role = db.query(Role).filter(Role.name == "ADMIN").first()
+    if admin_role:
+        user_role = db.query(UserRoleModel).filter(
+            UserRoleModel.user_id == user_id,
+            UserRoleModel.role_id == admin_role.id
+        ).first()
+        return user_role is not None
+    return False
+
 def has_global_project_view(db: Session, user_id: int) -> bool:
     """Check if user has global project view (admin-equivalent)."""
-    return has_permission(db, user_id, PROJECT_VIEW_ALL)
+    return is_admin(db, user_id)
 
 def can_access_project(db: Session, user_id: int, project_id: int) -> bool:
     """Check if user can access a project (admin or project member)."""
@@ -91,26 +107,28 @@ def get_projects(
     limit: int = 100,
     status_filter: ProjectStatus = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission(PROJECT_VIEW_ASSIGNED))
+    current_user: User = Depends(require_any_permission([PROJECT_VIEW_ALL, PROJECT_VIEW_ASSIGNED]))
 ):
     """
-    Get projects. 
-    - ADMIN sees all projects
-    - Others see only projects they are members of
+    Get projects.
+    - Admin users see all projects
+    - Other users see only projects they are assigned to (any role)
     """
-    # Check if user is admin
-    if has_global_project_view(db, current_user.id):
+    # Check if user has PROJECT_VIEW_ALL permission (admin)
+    if has_permission(db, current_user.id, PROJECT_VIEW_ALL):
+        # Admin sees all projects
         query = db.query(Project).filter(Project.is_deleted == False)
     else:
+        # Non-admin users see only assigned projects
         query = db.query(Project).join(ProjectMember).filter(
             ProjectMember.user_id == current_user.id,
             Project.is_deleted == False,
             ProjectMember.is_deleted == False
         )
-    
+
     if status_filter:
         query = query.filter(Project.status == status_filter)
-    
+
     projects = query.offset(skip).limit(limit).all()
     return projects
 

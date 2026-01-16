@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Text, Date, DateTime, Boolean, Enum, ForeignKey, Numeric
 from datetime import datetime
+from decimal import Decimal
 from app.database import Base
 import enum
 
@@ -61,6 +62,7 @@ class Task(Base):
     # Time tracking
     estimated_hours = Column(Numeric(6, 2), nullable=True)
     actual_hours = Column(Numeric(6, 2), nullable=True)  # Derived from TIME_LOGS
+    progress = Column(Numeric(5, 2), default=Decimal("0.00"), nullable=False)
     
     # Billing
     billable = Column(Boolean, default=False, nullable=False)

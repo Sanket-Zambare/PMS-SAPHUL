@@ -4,11 +4,15 @@ Admin routes for user management (view all users, change roles).
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.security import get_db, get_current_user, require_permission
-from app.core.permissions import USER_VIEW_ALL, USER_MANAGE_ROLES
+from app.core.permissions import USER_VIEW_ALL, USER_MANAGE_ROLES, PROJECT_CREATE
 from app.models.user import User
 from app.models.role import Role
 from app.models.user_role import UserRole
+from app.models.project import Project, ProjectStatus, ReviewStatus
 from app.schemas.user import UserResponse, UserWithRoles
+from app.schemas.project import ProjectCreate, ProjectResponse
+from app.services.activity_log_service import create_activity_log
+from app.models.activity_log import EntityType
 from pydantic import BaseModel
 
 admin_router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -153,5 +157,42 @@ def demote_to_member(
     db.commit()
 
     return {"message": "User demoted to MEMBER"}
+
+@admin_router.post("/projects", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
+def create_project_admin(
+    project_data: ProjectCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(PROJECT_CREATE))
+):
+    """Create a new project. Only ADMIN can create projects via admin route."""
+    project = Project(
+        name=project_data.name,
+        description=project_data.description,
+        methodology=project_data.methodology,
+        status=ProjectStatus.PENDING,
+        review_status=ReviewStatus.PENDING,
+        created_by=current_user.id,
+        start_date=project_data.start_date,
+        end_date=project_data.end_date
+    )
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+
+    # Log activity
+    try:
+        create_activity_log(
+            db=db,
+            entity_type=EntityType.PROJECT,
+            entity_id=project.id,
+            action="create",
+            performed_by=current_user.id
+        )
+    except Exception as e:
+        print(f"Warning: Failed to log activity: {e}")
+
+    return project
+
+
 
 

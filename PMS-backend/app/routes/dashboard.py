@@ -9,9 +9,11 @@ from app.core.security import (
     get_db,
     get_current_user,
     require_permission,
+    require_any_permission,
 )
 from app.core.permissions import (
     DASHBOARD_VIEW,
+    PROJECT_VIEW_ALL,
 )
 from app.models.project import Project, ProjectStatus
 from app.models.task import Task, TaskStatus
@@ -42,146 +44,67 @@ def get_dashboard_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(DASHBOARD_VIEW))
 ):
-    """Get dashboard statistics. Admin sees everything, others see filtered data."""
+    """Get dashboard statistics. Admin users see all projects, others see only assigned projects."""
     stats = {}
-    
-    # Check if user is admin
-    user_is_admin = is_admin(db, current_user.id)
-    
-    if user_is_admin:
-        # Admin sees all projects and tasks
-        total_projects = db.query(Project).filter(Project.is_deleted == False).count()
-        pending_projects = db.query(Project).filter(
+
+    # Check if user has PROJECT_VIEW_ALL permission (admin)
+    if has_permission(db, current_user.id, PROJECT_VIEW_ALL):
+        # Admin sees all projects
+        user_projects = db.query(Project).filter(Project.is_deleted == False).all()
+    else:
+        # Non-admin users see only assigned projects
+        user_projects = db.query(Project).join(ProjectMember).filter(
+            ProjectMember.user_id == current_user.id,
             Project.is_deleted == False,
-            Project.status == ProjectStatus.PENDING
+            ProjectMember.is_deleted == False
+        ).all()
+
+    project_ids = [p.id for p in user_projects]
+
+    total_projects = len(user_projects)
+    pending_projects = sum(1 for p in user_projects if p.status == ProjectStatus.PENDING)
+    in_progress_projects = sum(1 for p in user_projects if p.status == ProjectStatus.IN_PROGRESS)
+    completed_projects = sum(1 for p in user_projects if p.status == ProjectStatus.COMPLETED)
+
+    # Get tasks from user's projects
+    if project_ids:
+        total_tasks = db.query(Task).filter(
+            Task.project_id.in_(project_ids),
+            Task.is_deleted == False
         ).count()
-        in_progress_projects = db.query(Project).filter(
-            Project.is_deleted == False,
-            Project.status == ProjectStatus.IN_PROGRESS
-        ).count()
-        completed_projects = db.query(Project).filter(
-            Project.is_deleted == False,
-            Project.status == ProjectStatus.COMPLETED
-        ).count()
-        
-        total_tasks = db.query(Task).filter(Task.is_deleted == False).count()
         todo_tasks = db.query(Task).filter(
+            Task.project_id.in_(project_ids),
             Task.is_deleted == False,
             Task.status == TaskStatus.TODO
         ).count()
         in_progress_tasks = db.query(Task).filter(
+            Task.project_id.in_(project_ids),
             Task.is_deleted == False,
             Task.status == TaskStatus.IN_PROGRESS
         ).count()
         done_tasks = db.query(Task).filter(
+            Task.project_id.in_(project_ids),
             Task.is_deleted == False,
             Task.status == TaskStatus.DONE
         ).count()
-        
-        total_users = db.query(User).filter(User.is_deleted == False).count()
-        
-        stats = {
-            "projects": {
-                "total": total_projects,
-                "pending": pending_projects,
-                "in_progress": in_progress_projects,
-                "completed": completed_projects
-            },
-            "tasks": {
-                "total": total_tasks,
-                "todo": todo_tasks,
-                "in_progress": in_progress_tasks,
-                "done": done_tasks
-            },
-            "users": {
-                "total": total_users
-            }
-        }
-    
-    elif has_permission(db, current_user.id, "PROJECT_VIEW_ASSIGNED") or has_permission(db, current_user.id, "PROJECT_VIEW_ALL") or has_permission(db, current_user.id, "TASK_VIEW"):
-        # Project Manager sees projects they manage and related tasks
-        managed_projects = db.query(Project).join(ProjectMember).filter(
-            ProjectMember.user_id == current_user.id,
-            Project.is_deleted == False,
-            ProjectMember.is_deleted == False
-        ).all()
-        
-        project_ids = [p.id for p in managed_projects]
-        
-        total_projects = len(project_ids)
-        pending_projects = sum(1 for p in managed_projects if p.status == ProjectStatus.PENDING)
-        in_progress_projects = sum(1 for p in managed_projects if p.status == ProjectStatus.IN_PROGRESS)
-        completed_projects = sum(1 for p in managed_projects if p.status == ProjectStatus.COMPLETED)
-        
-        if project_ids:
-            total_tasks = db.query(Task).filter(
-                Task.project_id.in_(project_ids),
-                Task.is_deleted == False
-            ).count()
-            todo_tasks = db.query(Task).filter(
-                Task.project_id.in_(project_ids),
-                Task.is_deleted == False,
-                Task.status == TaskStatus.TODO
-            ).count()
-            in_progress_tasks = db.query(Task).filter(
-                Task.project_id.in_(project_ids),
-                Task.is_deleted == False,
-                Task.status == TaskStatus.IN_PROGRESS
-            ).count()
-            done_tasks = db.query(Task).filter(
-                Task.project_id.in_(project_ids),
-                Task.is_deleted == False,
-                Task.status == TaskStatus.DONE
-            ).count()
-        else:
-            total_tasks = todo_tasks = in_progress_tasks = done_tasks = 0
-        
-        stats = {
-            "projects": {
-                "total": total_projects,
-                "pending": pending_projects,
-                "in_progress": in_progress_projects,
-                "completed": completed_projects
-            },
-            "tasks": {
-                "total": total_tasks,
-                "todo": todo_tasks,
-                "in_progress": in_progress_tasks,
-                "done": done_tasks
-            }
-        }
-    
     else:
-        # Members see only their assigned tasks
-        my_tasks = db.query(Task).filter(
-            Task.assigned_to == current_user.id,
-            Task.is_deleted == False
-        ).all()
-        
-        total_tasks = len(my_tasks)
-        todo_tasks = sum(1 for t in my_tasks if t.status == TaskStatus.TODO)
-        in_progress_tasks = sum(1 for t in my_tasks if t.status == TaskStatus.IN_PROGRESS)
-        done_tasks = sum(1 for t in my_tasks if t.status == TaskStatus.DONE)
-        
-        # Get projects they're members of
-        member_projects = db.query(Project).join(ProjectMember).filter(
-            ProjectMember.user_id == current_user.id,
-            Project.is_deleted == False,
-            ProjectMember.is_deleted == False
-        ).all()
-        
-        stats = {
-            "tasks": {
-                "total": total_tasks,
-                "todo": todo_tasks,
-                "in_progress": in_progress_tasks,
-                "done": done_tasks
-            },
-            "projects": {
-                "total": len(member_projects)
-            }
+        total_tasks = todo_tasks = in_progress_tasks = done_tasks = 0
+
+    stats = {
+        "projects": {
+            "total": total_projects,
+            "pending": pending_projects,
+            "in_progress": in_progress_projects,
+            "completed": completed_projects
+        },
+        "tasks": {
+            "total": total_tasks,
+            "todo": todo_tasks,
+            "in_progress": in_progress_tasks,
+            "done": done_tasks
         }
-    
+    }
+
     return stats
 
 @router.get("/project-stats/{project_id}", response_model=ProjectTaskStatsResponse)

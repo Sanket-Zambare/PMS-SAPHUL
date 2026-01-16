@@ -10,27 +10,58 @@ import Modal from "react-bootstrap/Modal";
 import Form from "react-bootstrap/Form";
 import Alert from "react-bootstrap/Alert";
 import { useAuth } from "../context/AuthContext";
-import { projectsAPI } from "../services/api";
+import { usePermissions } from "../hooks/usePermissions";
+import { projectsAPI, usersAPI, projectMembersAPI } from "../services/api";
+import { PERMISSIONS } from "../utils/permissions";
 
 function Projects() {
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const navigate = useNavigate();
+
+
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [statusFilter, setStatusFilter] = useState(null); // null means all projects
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredProjects, setFilteredProjects] = useState([]);
   const [newProject, setNewProject] = useState({
     name: "",
     description: "",
+    methodology: "AGILE",
     status: "PENDING",
+    start_date: "",
+    end_date: "",
   });
+  const [users, setUsers] = useState([]);
+  const [selectedProjectManager, setSelectedProjectManager] = useState("");
+  const [selectedMembers, setSelectedMembers] = useState([]);
+  const [memberSearchTerm, setMemberSearchTerm] = useState("");
+  const [pmSearchTerm, setPmSearchTerm] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     fetchProjects();
+    if (hasPermission(PERMISSIONS.USER_VIEW_ALL) || hasPermission(PERMISSIONS.PROJECT_EDIT)) {
+      fetchUsers();
+    }
   }, [statusFilter]);
+
+  useEffect(() => {
+    // Filter projects based on search term
+    if (searchTerm.trim() === "") {
+      setFilteredProjects(projects);
+    } else {
+      const filtered = projects.filter(project =>
+        project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+      setFilteredProjects(filtered);
+    }
+  }, [projects, searchTerm]);
 
   const fetchProjects = async () => {
     try {
@@ -44,15 +75,53 @@ function Projects() {
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const response = await usersAPI.getAll();
+      setUsers(response.data);
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
+    }
+  };
+
   const handleAddProject = async () => {
     try {
+      console.log("Creating project with data:", newProject);
       const response = await projectsAPI.create(newProject);
+      console.log("Project created successfully:", response.data);
+      const projectId = response.data.id;
+
+      // Assign project manager if selected
+      if (selectedProjectManager) {
+        await projectMembersAPI.assign({
+          project_id: projectId,
+          user_id: selectedProjectManager,
+          role: "PROJECT_MANAGER"
+        });
+      }
+
+      // Assign members if selected
+      for (const memberId of selectedMembers) {
+        await projectMembersAPI.assign({
+          project_id: projectId,
+          user_id: memberId,
+          role: "MEMBER"
+        });
+      }
+
       setProjects([...projects, response.data]);
-      setNewProject({ name: "", description: "", status: "PENDING" });
+      setNewProject({ name: "", description: "", methodology: "AGILE", status: "PENDING", start_date: "", end_date: "" });
+      setSelectedProjectManager("");
+      setSelectedMembers([]);
+      setMemberSearchTerm("");
+      setPmSearchTerm("");
       setShowAddModal(false);
       setError("");
     } catch (error) {
-      setError(error.response?.data?.detail || "Failed to create project");
+      console.error("Error creating project:", error);
+      const errorMessage = error.response?.data?.detail || error.message || "Failed to create project";
+      setError(errorMessage);
+      // Don't close modal on error so user can see the error and try again
     }
   };
 
@@ -62,6 +131,8 @@ function Projects() {
         name: editingProject.name,
         description: editingProject.description,
         status: editingProject.status,
+        start_date: editingProject.start_date,
+        end_date: editingProject.end_date,
       });
       setProjects(
         projects.map((p) => (p.id === editingProject.id ? response.data : p))
@@ -100,6 +171,37 @@ function Projects() {
     return status.replace("_", " ");
   };
 
+  // Helper functions for member selection
+  const getFilteredUsers = () => {
+    if (!memberSearchTerm.trim()) return [];
+
+    return users.filter(user =>
+      !selectedMembers.includes(user.id) &&
+      (user.name.toLowerCase().includes(memberSearchTerm.toLowerCase()) ||
+       user.email.toLowerCase().includes(memberSearchTerm.toLowerCase()))
+    );
+  };
+
+  const addMember = (userId) => {
+    if (!selectedMembers.includes(userId)) {
+      setSelectedMembers([...selectedMembers, userId]);
+    }
+  };
+
+  const removeMember = (userId) => {
+    setSelectedMembers(selectedMembers.filter(id => id !== userId));
+  };
+
+  // Helper function for project manager selection
+  const getFilteredPMs = () => {
+    if (!pmSearchTerm.trim()) return [];
+
+    return users.filter(user =>
+      user.name.toLowerCase().includes(pmSearchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(pmSearchTerm.toLowerCase())
+    );
+  };
+
   if (loading) {
     return (
       <Container fluid className="mt-3">
@@ -115,7 +217,7 @@ function Projects() {
           <h1>Projects</h1>
           <p className="text-muted">All active and completed projects</p>
         </div>
-        {user?.role === "ADMIN" && (
+        {hasPermission(PERMISSIONS.PROJECT_CREATE) && (
           <Button onClick={() => setShowAddModal(true)}>Add Project</Button>
         )}
       </div>
@@ -126,25 +228,32 @@ function Projects() {
         </Alert>
       )}
 
-      {/* Status Filter Buttons */}
+      {/* Search Bar */}
       <div className="mb-3">
+        <Form.Control
+          type="text"
+          placeholder="Search projects by name or description..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+
+      {/* Status Filter Buttons */}
+      <div className="d-flex flex-wrap gap-2 mb-4">
         <Button
           variant={statusFilter === null ? "primary" : "outline-primary"}
-          className="me-2"
           onClick={() => setStatusFilter(null)}
         >
           All Projects
         </Button>
         <Button
           variant={statusFilter === "PENDING" ? "primary" : "outline-secondary"}
-          className="me-2"
           onClick={() => setStatusFilter("PENDING")}
         >
           Pending
         </Button>
         <Button
           variant={statusFilter === "IN_PROGRESS" ? "primary" : "outline-warning"}
-          className="me-2"
           onClick={() => setStatusFilter("IN_PROGRESS")}
         >
           In Progress
@@ -155,10 +264,16 @@ function Projects() {
         >
           Completed
         </Button>
+        <Button
+          variant={statusFilter === "DELAYED" ? "primary" : "outline-danger"}
+          onClick={() => setStatusFilter("DELAYED")}
+        >
+          Delayed
+        </Button>
       </div>
 
       <Row className="g-4">
-        {projects.map((project) => (
+        {filteredProjects.map((project) => (
           <Col md={4} key={project.id}>
             <Card className="h-100">
               <Card.Body>
@@ -173,6 +288,15 @@ function Projects() {
                     {project.description.substring(0, 100)}
                     {project.description.length > 100 ? "..." : ""}
                   </Card.Text>
+                )}
+                {(project.start_date || project.end_date) && (
+                  <div className="mb-2">
+                    <small className="text-muted">
+                      {project.start_date && `Start: ${new Date(project.start_date).toLocaleDateString()}`}
+                      {project.start_date && project.end_date && " | "}
+                      {project.end_date && `End: ${new Date(project.end_date).toLocaleDateString()}`}
+                    </small>
+                  </div>
                 )}
                 {project.review_status && (
                   <div className="mb-2">
@@ -190,7 +314,7 @@ function Projects() {
                       View Project
                     </Button>
                   </Link>
-                  {user?.role === "ADMIN" && (
+                  {hasPermission(PERMISSIONS.PROJECT_EDIT) && (
                     <>
                       <Button
                         variant="outline-secondary"
@@ -245,18 +369,181 @@ function Projects() {
                 placeholder="Enter project description"
               />
             </Form.Group>
-            <Form.Group>
-              <Form.Label>Status</Form.Label>
+            <Form.Group className="mb-3">
+              <Form.Label>Methodology</Form.Label>
               <Form.Select
-                value={newProject.status}
+                value={newProject.methodology}
                 onChange={(e) =>
-                  setNewProject({ ...newProject, status: e.target.value })
+                  setNewProject({ ...newProject, methodology: e.target.value })
                 }
               >
-                <option value="PENDING">Pending</option>
-                <option value="IN_PROGRESS">In Progress</option>
-                <option value="COMPLETED">Completed</option>
+                <option value="AGILE">Agile</option>
+                <option value="WATERFALL">Waterfall</option>
+                <option value="HYBRID">Hybrid</option>
               </Form.Select>
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Start Date</Form.Label>
+              <Form.Control
+                type="date"
+                value={newProject.start_date}
+                onChange={(e) =>
+                  setNewProject({ ...newProject, start_date: e.target.value })
+                }
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>End Date</Form.Label>
+              <Form.Control
+                type="date"
+                value={newProject.end_date}
+                onChange={(e) =>
+                  setNewProject({ ...newProject, end_date: e.target.value })
+                }
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Project Manager (Optional)</Form.Label>
+
+              {hasPermission(PERMISSIONS.USER_VIEW_ALL) || hasPermission(PERMISSIONS.PROJECT_EDIT) ? (
+                <>
+                  {/* Search input for selecting project manager */}
+                  <div className="position-relative">
+                    <Form.Control
+                      type="text"
+                      placeholder="Type to search project managers..."
+                      value={pmSearchTerm}
+                      onChange={(e) => setPmSearchTerm(e.target.value)}
+                      className="mb-2"
+                    />
+
+                    {/* Dropdown with filtered users - only show when typing */}
+                    {pmSearchTerm && (
+                      <div className="position-absolute w-100 border rounded bg-white shadow-sm" style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}>
+                        {getFilteredPMs().map((user) => (
+                          <div
+                            key={user.id}
+                            className="d-flex justify-content-between align-items-center p-2 border-bottom cursor-pointer hover-bg-light"
+                            onClick={() => {
+                              setSelectedProjectManager(user.id);
+                              setPmSearchTerm(""); // Clear search after selecting
+                            }}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <div>
+                              <div className="fw-bold">{user.name}</div>
+                              <small className="text-muted">{user.email}</small>
+                            </div>
+                            <Button variant="outline-primary" size="sm">Select</Button>
+                          </div>
+                        ))}
+                        {getFilteredPMs().length === 0 && (
+                          <div className="text-muted p-3 text-center">No users found</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Selected project manager display */}
+                  {selectedProjectManager && (
+                    <div className="mt-2">
+                      <Form.Text className="text-muted mb-2 d-block">
+                        Selected Project Manager:
+                      </Form.Text>
+                      <div className="d-flex align-items-center bg-light px-2 py-1 rounded-pill">
+                        <span className="me-2">{users.find(u => u.id === selectedProjectManager)?.name}</span>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="p-0 text-danger"
+                          onClick={() => setSelectedProjectManager("")}
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-muted">
+                  <small>You don't have permission to assign project managers.</small>
+                </div>
+              )}
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Team Members (Optional)</Form.Label>
+
+              {hasPermission(PERMISSIONS.USER_VIEW_ALL) || hasPermission(PERMISSIONS.PROJECT_EDIT) ? (
+                <>
+                  {/* Search input for adding members */}
+                  <div className="position-relative">
+                    <Form.Control
+                      type="text"
+                      placeholder="Type to search and add members..."
+                      value={memberSearchTerm}
+                      onChange={(e) => setMemberSearchTerm(e.target.value)}
+                      className="mb-2"
+                    />
+
+                    {/* Dropdown with filtered users - only show when typing */}
+                    {memberSearchTerm && (
+                      <div className="position-absolute w-100 border rounded bg-white shadow-sm" style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}>
+                        {getFilteredUsers().map((user) => (
+                          <div
+                            key={user.id}
+                            className="d-flex justify-content-between align-items-center p-2 border-bottom cursor-pointer hover-bg-light"
+                            onClick={() => {
+                              addMember(user.id);
+                              setMemberSearchTerm(""); // Clear search after adding
+                            }}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <div>
+                              <div className="fw-bold">{user.name}</div>
+                              <small className="text-muted">{user.email}</small>
+                            </div>
+                            <Button variant="outline-primary" size="sm">+</Button>
+                          </div>
+                        ))}
+                        {getFilteredUsers().length === 0 && (
+                          <div className="text-muted p-3 text-center">No users found</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Selected members list */}
+                  {selectedMembers.length > 0 && (
+                    <div className="mt-3">
+                      <Form.Text className="text-muted mb-2 d-block">
+                        Selected Members ({selectedMembers.length}):
+                      </Form.Text>
+                      <div className="d-flex flex-wrap gap-2">
+                        {selectedMembers.map((memberId) => {
+                          const member = users.find(u => u.id === memberId);
+                          return (
+                            <div key={memberId} className="d-flex align-items-center bg-light px-2 py-1 rounded-pill">
+                              <span className="me-2">{member?.name}</span>
+                              <Button
+                                variant="link"
+                                size="sm"
+                                className="p-0 text-danger"
+                                onClick={() => removeMember(memberId)}
+                              >
+                                ×
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-muted">
+                  <small>You don't have permission to assign team members.</small>
+                </div>
+              )}
             </Form.Group>
           </Form>
         </Modal.Body>
@@ -310,6 +597,32 @@ function Projects() {
                   placeholder="Enter project description"
                 />
               </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label>Start Date</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={editingProject.start_date || ""}
+                  onChange={(e) =>
+                    setEditingProject({
+                      ...editingProject,
+                      start_date: e.target.value,
+                    })
+                  }
+                />
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label>End Date</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={editingProject.end_date || ""}
+                  onChange={(e) =>
+                    setEditingProject({
+                      ...editingProject,
+                      end_date: e.target.value,
+                    })
+                  }
+                />
+              </Form.Group>
               <Form.Group>
                 <Form.Label>Status</Form.Label>
                 <Form.Select
@@ -324,6 +637,7 @@ function Projects() {
                   <option value="PENDING">Pending</option>
                   <option value="IN_PROGRESS">In Progress</option>
                   <option value="COMPLETED">Completed</option>
+                  <option value="DELAYED">Delayed</option>
                 </Form.Select>
               </Form.Group>
             </Form>
