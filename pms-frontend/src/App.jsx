@@ -27,14 +27,9 @@ function Layout() {
 function AppRoutes() {
   const { isAuthenticated, loading } = useAuth();
 
-  console.log("AppRoutes rendering, loading:", loading, "isAuthenticated:", isAuthenticated);
-
   if (loading) {
-    console.log("Showing loading");
     return <div>Loading...</div>;
   }
-
-  console.log("Not loading, isAuthenticated:", isAuthenticated);
 
   return (
     <Router>

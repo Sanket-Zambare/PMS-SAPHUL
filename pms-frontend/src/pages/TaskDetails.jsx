@@ -23,6 +23,7 @@ function TaskDetails() {
   const [task, setTask] = useState(null);
   const [project, setProject] = useState(null);
   const [assignedUser, setAssignedUser] = useState(null);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -45,6 +46,7 @@ function TaskDetails() {
       setProject(projectData);
       const userData = usersRes.data.find(u => u.id === taskRes.data.assigned_to);
       setAssignedUser(userData);
+      setUsers(usersRes.data || []);
     } catch (error) {
       console.error("Failed to fetch task details:", error);
       console.error("Error response:", error.response);
@@ -108,6 +110,40 @@ function TaskDetails() {
     setShowEditModal(true);
   };
 
+  const handleRequestApproval = async () => {
+    try {
+      const response = await tasksAPI.requestApproval(task.id);
+      setTask(response.data);
+      setError("");
+    } catch (error) {
+      setError(error.response?.data?.detail || "Failed to request approval");
+    }
+  };
+
+  const handleApproveTask = async () => {
+    if (window.confirm("Are you sure you want to approve this task?")) {
+      try {
+        const response = await tasksAPI.approve(task.id);
+        setTask(response.data);
+        setError("");
+      } catch (error) {
+        setError(error.response?.data?.detail || "Failed to approve task");
+      }
+    }
+  };
+
+  const handleRejectTask = async () => {
+    if (window.confirm("Are you sure you want to reject this task?")) {
+      try {
+        const response = await tasksAPI.reject(task.id);
+        setTask(response.data);
+        setError("");
+      } catch (error) {
+        setError(error.response?.data?.detail || "Failed to reject task");
+      }
+    }
+  };
+
   const getStatusVariant = (status) => {
     if (status === "DONE") return "success";
     if (status === "IN_PROGRESS") return "warning";
@@ -118,6 +154,40 @@ function TaskDetails() {
 
   const getStatusLabel = (status) => {
     return status.replace("_", " ");
+  };
+
+  const getReviewStatusVariant = (status) => {
+    if (status === "UNDER_REVIEW") return "warning";
+    if (status === "APPROVED") return "success";
+    if (status === "REJECTED") return "danger";
+    return "secondary";
+  };
+
+  const getReviewStatusLabel = (status) => {
+    if (status === "UNDER_REVIEW") return "Under Review";
+    if (status === "APPROVED") return "Approved";
+    if (status === "REJECTED") return "Rejected";
+    return "None";
+  };
+
+  const getApprovalStatusVariant = (status) => {
+    if (status === "PENDING") return "warning";
+    if (status === "APPROVED") return "success";
+    if (status === "REJECTED") return "danger";
+    return "secondary";
+  };
+
+  const getApprovalStatusLabel = (status) => {
+    if (status === "PENDING") return "Pending";
+    if (status === "APPROVED") return "Approved";
+    if (status === "REJECTED") return "Rejected";
+    return "None";
+  };
+
+  const getUserName = (userId) => {
+    if (!userId) return "Unknown";
+    const foundUser = users.find((u) => u.id === userId);
+    return foundUser ? foundUser.name : "Unknown";
   };
 
   if (loading) {
@@ -179,6 +249,53 @@ function TaskDetails() {
                   <strong>Progress:</strong> {parseFloat(task.progress).toFixed(0)}%
                 </Col>
               </Row>
+              <Row className="mb-3">
+                <Col md={6}>
+                  <strong>Review Status:</strong>{" "}
+                  <Badge bg={getReviewStatusVariant(task.review_status)}>
+                    {getReviewStatusLabel(task.review_status)}
+                  </Badge>
+                </Col>
+                <Col md={6}>
+                  <strong>Approval Status:</strong>{" "}
+                  <Badge bg={getApprovalStatusVariant(task.approval_status)}>
+                    {getApprovalStatusLabel(task.approval_status)}
+                  </Badge>
+                </Col>
+              </Row>
+              {task.review_requested_at && (
+                <Row className="mb-3">
+                  <Col md={6}>
+                    <strong>Review Requested:</strong>{" "}
+                    {new Date(task.review_requested_at).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </Col>
+                  {task.reviewed_at && (
+                    <Col md={6}>
+                      <strong>Reviewed At:</strong>{" "}
+                      {new Date(task.reviewed_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </Col>
+                  )}
+                </Row>
+              )}
+              {task.reviewed_by && (
+                <Row className="mb-3">
+                  <Col md={6}>
+                    <strong>Reviewed By:</strong> {getUserName(task.reviewed_by)}
+                  </Col>
+                </Row>
+              )}
               <ProgressBar
                 now={isNaN(task.progress) ? 0 : parseFloat(task.progress)}
                 label={`${(isNaN(task.progress) ? 0 : parseFloat(task.progress)).toFixed(0)}%`}
@@ -258,14 +375,29 @@ function TaskDetails() {
               <h5>Quick Actions</h5>
             </Card.Header>
             <Card.Body>
-              {(hasPermission(PERMISSIONS.TASK_EDIT) ||
-                task.assigned_to === user?.id) && (
-                <div className="d-grid gap-2">
+              <div className="d-grid gap-2">
+                {(hasPermission(PERMISSIONS.TASK_EDIT) ||
+                  task.assigned_to === user?.id) && (
                   <Button variant="outline-primary" onClick={openEditModal}>
                     {hasPermission(PERMISSIONS.TASK_EDIT) ? "Update Status & Progress" : "Update Status"}
                   </Button>
-                </div>
-              )}
+                )}
+                {task.assigned_to === user?.id && task.status === "DONE" && task.approval_status === "NONE" && (
+                  <Button variant="outline-info" onClick={handleRequestApproval}>
+                    Request Approval
+                  </Button>
+                )}
+                {hasPermission(PERMISSIONS.TASK_APPROVE) && task.approval_status === "PENDING" && (
+                  <>
+                    <Button variant="outline-success" onClick={handleApproveTask}>
+                      Approve Task
+                    </Button>
+                    <Button variant="outline-danger" onClick={handleRejectTask}>
+                      Reject Task
+                    </Button>
+                  </>
+                )}
+              </div>
             </Card.Body>
           </Card>
         </Col>

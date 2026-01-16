@@ -256,6 +256,40 @@ function Tasks() {
     }
   };
 
+  const handleRequestApproval = async (taskId) => {
+    try {
+      const response = await tasksAPI.requestApproval(taskId);
+      setTasks(tasks.map((t) => (t.id === taskId ? response.data : t)));
+      setError("");
+    } catch (error) {
+      setError(error.response?.data?.detail || "Failed to request approval");
+    }
+  };
+
+  const handleApproveTask = async (taskId) => {
+    if (window.confirm("Are you sure you want to approve this task?")) {
+      try {
+        const response = await tasksAPI.approve(taskId);
+        setTasks(tasks.map((t) => (t.id === taskId ? response.data : t)));
+        setError("");
+      } catch (error) {
+        setError(error.response?.data?.detail || "Failed to approve task");
+      }
+    }
+  };
+
+  const handleRejectTask = async (taskId) => {
+    if (window.confirm("Are you sure you want to reject this task?")) {
+      try {
+        const response = await tasksAPI.reject(taskId);
+        setTasks(tasks.map((t) => (t.id === taskId ? response.data : t)));
+        setError("");
+      } catch (error) {
+        setError(error.response?.data?.detail || "Failed to reject task");
+      }
+    }
+  };
+
   const openEditTaskModal = (task) => {
     setEditingTask({
       ...task,
@@ -289,6 +323,34 @@ function Tasks() {
 
   const getStatusLabel = (status) => {
     return status.replace("_", " ");
+  };
+
+  const getReviewStatusVariant = (status) => {
+    if (status === "UNDER_REVIEW") return "warning";
+    if (status === "APPROVED") return "success";
+    if (status === "REJECTED") return "danger";
+    return "secondary";
+  };
+
+  const getReviewStatusLabel = (status) => {
+    if (status === "UNDER_REVIEW") return "Under Review";
+    if (status === "APPROVED") return "Approved";
+    if (status === "REJECTED") return "Rejected";
+    return "None";
+  };
+
+  const getApprovalStatusVariant = (status) => {
+    if (status === "PENDING") return "warning";
+    if (status === "APPROVED") return "success";
+    if (status === "REJECTED") return "danger";
+    return "secondary";
+  };
+
+  const getApprovalStatusLabel = (status) => {
+    if (status === "PENDING") return "Pending";
+    if (status === "APPROVED") return "Approved";
+    if (status === "REJECTED") return "Rejected";
+    return "None";
   };
 
   if (loading) {
@@ -386,6 +448,8 @@ function Tasks() {
             <th>Project</th>
             <th>Assigned To</th>
             <th>Status</th>
+            <th>Review Status</th>
+            <th>Approval Status</th>
             <th>Progress</th>
             <th>Start Date</th>
             <th>Due Date</th>
@@ -395,7 +459,7 @@ function Tasks() {
         <tbody>
           {filteredTasks.length === 0 ? (
             <tr>
-              <td colSpan="8" className="text-center py-4">
+              <td colSpan="10" className="text-center py-4">
                 <div className="text-muted">
                   {loading ? "Loading tasks..." : "No tasks found"}
                 </div>
@@ -415,6 +479,16 @@ function Tasks() {
                 <td>
                   <Badge bg={getStatusVariant(task.status)}>
                     {getStatusLabel(task.status)}
+                  </Badge>
+                </td>
+                <td>
+                  <Badge bg={getReviewStatusVariant(task.review_status)}>
+                    {getReviewStatusLabel(task.review_status)}
+                  </Badge>
+                </td>
+                <td>
+                  <Badge bg={getApprovalStatusVariant(task.approval_status)}>
+                    {getApprovalStatusLabel(task.approval_status)}
                   </Badge>
                 </td>
                 <td>{(isNaN(task.progress) ? 0 : parseFloat(task.progress)).toFixed(0)}%</td>
@@ -455,6 +529,36 @@ function Tasks() {
                     >
                       Edit
                     </Button>
+                  )}
+                  {task.assigned_to === user?.id && task.status === "DONE" && task.approval_status === "NONE" && (
+                    <Button
+                      variant="outline-info"
+                      size="sm"
+                      className="me-2"
+                      onClick={() => handleRequestApproval(task.id)}
+                    >
+                      Request Approval
+                    </Button>
+                  )}
+                  {hasPermission(PERMISSIONS.TASK_APPROVE) && task.approval_status === "PENDING" && (
+                    <>
+                      <Button
+                        variant="outline-success"
+                        size="sm"
+                        className="me-2"
+                        onClick={() => handleApproveTask(task.id)}
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        className="me-2"
+                        onClick={() => handleRejectTask(task.id)}
+                      >
+                        Reject
+                      </Button>
+                    </>
                   )}
                   {hasPermission(PERMISSIONS.TASK_DELETE) && (
                     <Button

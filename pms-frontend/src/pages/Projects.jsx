@@ -86,9 +86,7 @@ function Projects() {
 
   const handleAddProject = async () => {
     try {
-      console.log("Creating project with data:", newProject);
       const response = await projectsAPI.create(newProject);
-      console.log("Project created successfully:", response.data);
       const projectId = response.data.id;
 
       // Assign project manager if selected

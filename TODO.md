@@ -1,16 +1,22 @@
-# TODO: Fix Admin Project Visibility Issue
+# TODO: Implement Task Review Functionality
 
-## Current Issue
-Admin users cannot see all projects - they only see projects they are assigned to.
+## Tasks Page Updates
+- [x] Add Review Status and Approval Status columns to the tasks table
+- [x] Add "Request Approval" button for assigned members when task status is DONE
+- [x] Add "Approve" and "Reject" buttons for users with TASK_APPROVE permission when approval_status is PENDING
+- [x] Implement API calls for requestApproval, approve, and reject actions
+- [x] Update table row rendering to include new status badges
 
-## Plan
-- Modify the `get_projects` endpoint in `PMS-backend/app/routes/projects.py` to:
-  - Check if user has `PROJECT_VIEW_ALL` permission (admin)
-  - If yes, return all projects
-  - If no, return only assigned projects
-  - Update permission requirement to allow either `PROJECT_VIEW_ALL` or `PROJECT_VIEW_ASSIGNED`
+## Task Details Page Updates
+- [x] Display review_status and approval_status in task details
+- [x] Add review action buttons in Quick Actions section
+- [x] Show review requested date, reviewed date, and reviewed by information
+- [x] Implement API calls for review actions in details view
 
-## Steps
-- [ ] Update get_projects endpoint logic
-- [ ] Test admin can see all projects
-- [ ] Test non-admin users still only see assigned projects
+## Testing
+- [ ] Test member requesting approval for DONE tasks
+- [ ] Test PM approving/rejecting pending approvals
+- [ ] Verify status updates and notifications
+
+## Bug Fixes
+- [x] Fixed missing helper functions in TaskDetails.jsx (getReviewStatusVariant, getReviewStatusLabel, getApprovalStatusVariant, getApprovalStatusLabel, getUserName)
