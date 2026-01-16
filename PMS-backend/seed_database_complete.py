@@ -176,6 +176,8 @@ def seed_database():
         client_permissions = [
             "PROJECT_VIEW_ASSIGNED",
             "TASK_VIEW", "TASK_APPROVE",
+            "USER_VIEW",
+            "DASHBOARD_VIEW",
         ]
         for perm_code in client_permissions:
             if perm_code in permissions_dict:
@@ -351,7 +353,7 @@ def seed_database():
             {
                 "project_id": projects[0].id,
                 "user_id": client_user.id,
-                "role": ProjectMemberRole.CLIENT
+                "role": ProjectMemberRole.MEMBER
             },
             {
                 "project_id": projects[1].id,
@@ -361,7 +363,7 @@ def seed_database():
             {
                 "project_id": projects[1].id,
                 "user_id": client_user.id,
-                "role": ProjectMemberRole.CLIENT
+                "role": ProjectMemberRole.MEMBER
             },
         ]
 

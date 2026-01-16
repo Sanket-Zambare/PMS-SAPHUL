@@ -12,8 +12,8 @@ import Alert from "react-bootstrap/Alert";
 import ProgressBar from "react-bootstrap/ProgressBar";
 import { useAuth } from "../context/AuthContext";
 import { usePermissions } from "../hooks/usePermissions";
-import { tasksAPI, projectsAPI, usersAPI } from "../services/api";
-import { PERMISSIONS } from "../utils/permissions";
+import { tasksAPI, projectsAPI, usersAPI, projectMembersAPI } from "../services/api";
+import { PERMISSIONS, isClient } from "../utils/permissions";
 
 function TaskDetails() {
   const { id } = useParams();
@@ -35,18 +35,28 @@ function TaskDetails() {
 
   const fetchTaskDetails = async () => {
     try {
-      const [taskRes, projectsRes, usersRes] = await Promise.all([
-        tasksAPI.getById(id),
-        projectsAPI.getAll(),
-        usersAPI.getAll(),
-      ]);
+      const taskRes = await tasksAPI.getById(id);
+      const projectRes = await projectsAPI.getById(taskRes.data.project_id);
 
       setTask(taskRes.data);
-      const projectData = projectsRes.data.find(p => p.id === taskRes.data.project_id);
-      setProject(projectData);
-      const userData = usersRes.data.find(u => u.id === taskRes.data.assigned_to);
-      setAssignedUser(userData);
-      setUsers(usersRes.data || []);
+      setProject(projectRes.data);
+
+      if (!isClient(user)) {
+        const usersRes = await usersAPI.getAll();
+        const userData = usersRes.data.find(u => u.id === taskRes.data.assigned_to);
+        setAssignedUser(userData);
+        setUsers(usersRes.data || []);
+      } else {
+        // For clients, derive users from project members
+        const membersRes = await projectMembersAPI.getByProject(taskRes.data.project_id);
+        const derivedUsers = membersRes.data.map(member => ({
+          id: member.user_id,
+          name: "Project Member"
+        }));
+        const userData = derivedUsers.find(u => u.id === taskRes.data.assigned_to);
+        setAssignedUser(userData);
+        setUsers(derivedUsers);
+      }
     } catch (error) {
       console.error("Failed to fetch task details:", error);
       console.error("Error response:", error.response);

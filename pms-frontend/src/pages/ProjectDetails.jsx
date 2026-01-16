@@ -12,7 +12,7 @@ import Form from "react-bootstrap/Form";
 import Alert from "react-bootstrap/Alert";
 import { useAuth } from "../context/AuthContext";
 import { usePermissions } from "../hooks/usePermissions";
-import { isClient } from "../utils/permissions";
+import { PERMISSIONS, isClient } from "../utils/permissions";
 import {
   projectsAPI,
   tasksAPI,
@@ -20,6 +20,7 @@ import {
   usersAPI,
   activityLogsAPI,
   dashboardAPI,
+  invitationsAPI,
 } from "../services/api";
 
 function ProjectDetails() {
@@ -41,6 +42,7 @@ function ProjectDetails() {
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
   const [showEditTaskModal, setShowEditTaskModal] = useState(false);
   const [showApproveModal, setShowApproveModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [newTask, setNewTask] = useState({
     title: "",
@@ -48,6 +50,7 @@ function ProjectDetails() {
     assigned_to: "",
     due_date: "",
   });
+  const [inviteEmail, setInviteEmail] = useState("");
 
   useEffect(() => {
     fetchProjectData();
@@ -55,22 +58,38 @@ function ProjectDetails() {
 
   const fetchProjectData = async () => {
     try {
-      const [projectRes, tasksRes, membersRes, usersRes, logsRes, statsRes] =
-        await Promise.all([
-          projectsAPI.getById(projectId),
-          tasksAPI.getAll({ project_id: projectId }),
-          projectMembersAPI.getByProject(projectId),
-          usersAPI.getAll(),
-          activityLogsAPI.getByProject(projectId, 0, 20),
-          dashboardAPI.getProjectStats(projectId),
-        ]);
+      const promises = [
+        projectsAPI.getById(projectId),
+        tasksAPI.getAll({ project_id: projectId }),
+        projectMembersAPI.getByProject(projectId),
+        usersAPI.getAll(), // Always fetch users for member display
+      ];
+
+      if (!isClient(user)) {
+        promises.push(activityLogsAPI.getByProject(projectId, 0, 20));
+        promises.push(dashboardAPI.getProjectStats(projectId));
+      }
+
+      const results = await Promise.all(promises);
+
+      const projectRes = results[0];
+      const tasksRes = results[1];
+      const membersRes = results[2];
+      const usersRes = results[3];
+      let logsRes = { data: [] };
+      let statsRes = null;
+
+      if (!isClient(user)) {
+        logsRes = results[4];
+        statsRes = results[5];
+      }
 
       setProject(projectRes.data);
       setTasks(tasksRes.data);
       setMembers(membersRes.data);
       setUsers(usersRes.data);
       setActivityLogs(logsRes.data);
-      setStats(statsRes.data);
+      setStats(statsRes?.data || null);
     } catch (error) {
       console.error("Failed to fetch project data:", error);
       setError("Failed to load project data");
@@ -132,6 +151,20 @@ function ProjectDetails() {
       fetchProjectData();
     } catch (error) {
       setError(error.response?.data?.detail || "Failed to approve project");
+    }
+  };
+
+  const handleInviteClient = async () => {
+    try {
+      await invitationsAPI.invite({
+        email: inviteEmail,
+        project_id: projectId,
+      });
+      setShowInviteModal(false);
+      setInviteEmail("");
+      alert("Invitation sent successfully.");
+    } catch (error) {
+      alert("Failed to send invitation.");
     }
   };
 
@@ -271,6 +304,11 @@ function ProjectDetails() {
                     );
                   })}
                 </div>
+              )}
+              {hasPermission(PERMISSIONS.USER_CREATE) && (
+                <Button variant="primary" className="mt-3" onClick={() => setShowInviteModal(true)}>
+                  Invite Client
+                </Button>
               )}
             </Card.Body>
           </Card>
@@ -570,6 +608,38 @@ function ProjectDetails() {
           </Button>
           <Button variant="success" onClick={handleApproveProject}>
             Approve
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Invite Client Modal */}
+      <Modal show={showInviteModal} onHide={() => setShowInviteModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Invite Client</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Email</Form.Label>
+              <Form.Control
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="Enter client email"
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowInviteModal(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleInviteClient}
+            disabled={!inviteEmail.trim()}
+          >
+            Send Invitation
           </Button>
         </Modal.Footer>
       </Modal>

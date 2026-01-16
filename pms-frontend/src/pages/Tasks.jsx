@@ -84,7 +84,7 @@ function Tasks() {
         if (statusFilter) {
           taskParams.status_filter = statusFilter;
         }
-        const [tasksRes, projectsRes, usersRes] = await Promise.all([
+        const promises = [
           tasksAPI.getAll(taskParams).catch(err => {
             console.error('Failed to fetch tasks:', err);
             return { data: [] };
@@ -93,13 +93,19 @@ function Tasks() {
             console.error('Failed to fetch projects:', err);
             return { data: [] };
           }),
-          usersAPI.getAll().catch(err => {
+        ];
+
+        if (!isClient(user)) {
+          promises.push(usersAPI.getAll().catch(err => {
             console.error('Failed to fetch users:', err);
             return { data: [] };
-          }),
-        ]);
+          }));
+        }
+
+        const [tasksRes, projectsRes, ...rest] = await Promise.all(promises);
         tasksData = tasksRes.data || [];
         projectsData = projectsRes.data || [];
+        const usersRes = rest[0] || { data: [] };
         setUsers(usersRes.data || []);
       } else {
 
@@ -122,16 +128,21 @@ function Tasks() {
             return;
           }
 
-          const [projectsRes, usersRes] = await Promise.all([
+          const promises = [
             projectsAPI.getAll().catch(err => {
               console.error('Failed to fetch projects:', err);
               return { data: [] };
             }),
-            usersAPI.getAll().catch(err => {
+          ];
+
+          if (!isClient(user)) {
+            promises.push(usersAPI.getAll().catch(err => {
               console.error('Failed to fetch users:', err);
               return { data: [] };
-            }),
-          ]);
+            }));
+          }
+
+          const [projectsRes, ...rest] = await Promise.all(promises);
 
           // Filter projects to only member ones
           projectsData = (projectsRes.data || []).filter(project => memberProjectIds.includes(project.id));
@@ -149,7 +160,7 @@ function Tasks() {
           });
           tasksData = tasksRes.data || [];
 
-
+          const usersRes = rest[0] || { data: [] };
           setUsers(usersRes.data || []);
         } catch (membershipError) {
           console.error('Failed to fetch user memberships:', membershipError);
@@ -309,6 +320,7 @@ function Tasks() {
 
   const getUserName = (userId) => {
     if (!userId) return "Unassigned";
+    if (isClient(user)) return "Assigned";
     const foundUser = users.find((u) => u.id === userId);
     return foundUser ? foundUser.name : "Unknown";
   };

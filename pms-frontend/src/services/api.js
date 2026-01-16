@@ -64,6 +64,7 @@ export const authAPI = {
 // Invitations API
 export const invitationsAPI = {
   acceptInvite: (token, password) => api.post("/invitations/accept", { token, password }),
+  invite: (data) => api.post("/invitations/invite", data),
 };
 
 // Users API
