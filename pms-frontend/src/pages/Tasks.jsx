@@ -10,7 +10,7 @@ import Alert from "react-bootstrap/Alert";
 import { useAuth } from "../context/AuthContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { tasksAPI, projectsAPI, usersAPI, projectMembersAPI } from "../services/api";
-import { PERMISSIONS } from "../utils/permissions";
+import { PERMISSIONS, isClient } from "../utils/permissions";
 
 function Tasks() {
   const { user } = useAuth();
@@ -372,7 +372,7 @@ function Tasks() {
               : "All tasks across projects"}
           </p>
         </div>
-        {hasPermission(PERMISSIONS.TASK_CREATE) && (
+        {hasPermission(PERMISSIONS.TASK_CREATE) && !isClient(user) && (
           <Button onClick={() => {
             setShowAddModal(true);
             setAssignableUsers([]);

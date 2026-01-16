@@ -101,3 +101,15 @@ export const hasAllPermissions = (userPermissions, permissions) => {
   return permissions.every(perm => userPermissions.includes(perm));
 };
 
+/**
+ * Check if user has CLIENT role
+ * @param {Object} user - User object with roles array
+ * @returns {boolean}
+ */
+export const isClient = (user) => {
+  if (!user || !user.roles || !Array.isArray(user.roles)) {
+    return false;
+  }
+  return user.roles.includes('CLIENT');
+};
+

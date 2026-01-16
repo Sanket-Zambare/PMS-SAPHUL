@@ -51,6 +51,20 @@ def has_global_project_view(db: Session, user_id: int) -> bool:
     """Check if user has global project view (admin-equivalent)."""
     return is_admin(db, user_id)
 
+def is_client(db: Session, user_id: int) -> bool:
+    """Check if user has CLIENT role."""
+    from app.models.role import Role
+    from app.models.user_role import UserRole as UserRoleModel
+
+    client_role = db.query(Role).filter(Role.name == "CLIENT").first()
+    if client_role:
+        user_role = db.query(UserRoleModel).filter(
+            UserRoleModel.user_id == user_id,
+            UserRoleModel.role_id == client_role.id
+        ).first()
+        return user_role is not None
+    return False
+
 def can_access_project(db: Session, user_id: int, project_id: int) -> bool:
     """Check if user can access a project (admin or project member)."""
     # Admin can access all projects
@@ -111,11 +125,19 @@ def get_projects(
 ):
     """
     Get projects.
-    - Admin users see all projects
+    - Admin users see all projects (unless CLIENT role)
+    - CLIENT users see only projects they are assigned to
     - Other users see only projects they are assigned to (any role)
     """
+    # CLIENT users are ALWAYS restricted to assigned projects
+    if is_client(db, current_user.id):
+        query = db.query(Project).join(ProjectMember).filter(
+            ProjectMember.user_id == current_user.id,
+            Project.is_deleted == False,
+            ProjectMember.is_deleted == False
+        )
     # Check if user has PROJECT_VIEW_ALL permission (admin)
-    if has_permission(db, current_user.id, PROJECT_VIEW_ALL):
+    elif has_permission(db, current_user.id, PROJECT_VIEW_ALL):
         # Admin sees all projects
         query = db.query(Project).filter(Project.is_deleted == False)
     else:

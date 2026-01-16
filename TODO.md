@@ -20,3 +20,19 @@
 
 ## Bug Fixes
 - [x] Fixed missing helper functions in TaskDetails.jsx (getReviewStatusVariant, getReviewStatusLabel, getApprovalStatusVariant, getApprovalStatusLabel, getUserName)
+
+## Task: Restrict project and task visibility for CLIENT users
+
+### Completed Steps
+- [x] Added is_client(db, user_id) function in projects.py to check if user has CLIENT role
+- [x] Modified get_projects in projects.py to restrict CLIENT users to assigned projects only
+- [x] Added is_client(db, user_id) function in tasks.py to check if user has CLIENT role
+- [x] Modified get_tasks in tasks.py to restrict CLIENT users to tasks from assigned projects only
+- [x] Updated TODO.md with completion summary
+
+### Summary of Changes
+- CLIENT users now ALWAYS see only projects and tasks where they exist in PROJECT_MEMBERS
+- Non-CLIENT roles (ADMIN, PROJECT_MANAGER, MEMBER) maintain existing behavior
+- No database schema changes
+- No new endpoints or response shape changes
+- Minimal query changes at the database level

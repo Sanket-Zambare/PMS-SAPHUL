@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import AcceptInvite from "./pages/AcceptInvite";
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
 import ProjectDetails from "./pages/ProjectDetails";
@@ -50,6 +51,10 @@ function AppRoutes() {
         <Route
           path="/reset-password"
           element={isAuthenticated ? <Navigate to="/" replace /> : <ResetPassword />}
+        />
+        <Route
+          path="/accept-invite"
+          element={<AcceptInvite />}
         />
         <Route
           path="/"

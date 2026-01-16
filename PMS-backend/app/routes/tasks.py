@@ -52,6 +52,20 @@ def has_global_project_view(db: Session, user_id: int) -> bool:
     """Check if user has global project view (admin equivalent)."""
     return is_admin(db, user_id)
 
+def is_client(db: Session, user_id: int) -> bool:
+    """Check if user has CLIENT role."""
+    from app.models.role import Role
+    from app.models.user_role import UserRole as UserRoleModel
+
+    client_role = db.query(Role).filter(Role.name == "CLIENT").first()
+    if client_role:
+        user_role = db.query(UserRoleModel).filter(
+            UserRoleModel.user_id == user_id,
+            UserRoleModel.role_id == client_role.id
+        ).first()
+        return user_role is not None
+    return False
+
 def can_access_project(db: Session, user_id: int, project_id: int) -> bool:
     """Check if user can access a project (admin or project member)."""
     # Admin can access all projects
@@ -152,12 +166,30 @@ def get_tasks(
 ):
     """
     Get tasks.
-    - All users see only tasks from projects they are members of
+    - CLIENT users see only tasks from projects they are members of
+    - Admin users see all tasks (unless CLIENT role)
+    - Other users see only tasks from projects they are members of
     - Can filter by assigned_to to see only own tasks
     - Can filter by project_ids (comma-separated) for multiple projects
     """
+    # CLIENT users are ALWAYS restricted to tasks from assigned projects
+    if is_client(db, current_user.id):
+        user_project_ids = db.query(ProjectMember.project_id).filter(
+            ProjectMember.user_id == current_user.id,
+            ProjectMember.is_deleted == False
+        ).all()
+        user_project_id_list = [pm.project_id for pm in user_project_ids]
+
+        if not user_project_id_list:
+            # User has no project memberships
+            return []
+
+        query = db.query(Task).filter(
+            Task.project_id.in_(user_project_id_list),
+            Task.is_deleted == False
+        )
     # Check if user is admin - they can see all tasks
-    if has_global_project_view(db, current_user.id):
+    elif has_global_project_view(db, current_user.id):
         query = db.query(Task).filter(Task.is_deleted == False)
     else:
         # Non-admin users see only tasks from their projects

@@ -57,8 +57,13 @@ export const authAPI = {
     api.post("/auth/login", { email, password }),
   getCurrentUser: () => api.get("/auth/me"),
   forgotPassword: (email) => api.post("/auth/forgot-password", { email }),
-  resetPassword: (token, newPassword) => 
+  resetPassword: (token, newPassword) =>
     api.post("/auth/reset-password", { token, new_password: newPassword }),
+};
+
+// Invitations API
+export const invitationsAPI = {
+  acceptInvite: (token, password) => api.post("/invitations/accept", { token, password }),
 };
 
 // Users API

@@ -11,6 +11,8 @@ import Modal from "react-bootstrap/Modal";
 import Form from "react-bootstrap/Form";
 import Alert from "react-bootstrap/Alert";
 import { useAuth } from "../context/AuthContext";
+import { usePermissions } from "../hooks/usePermissions";
+import { isClient } from "../utils/permissions";
 import {
   projectsAPI,
   tasksAPI,
@@ -24,6 +26,7 @@ function ProjectDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const projectId = parseInt(id);
 
   const [project, setProject] = useState(null);
@@ -230,9 +233,10 @@ function ProjectDetails() {
                   </Card.Text>
                 </>
               )}
-              {user?.role === "ADMIN" &&
+              {hasPermission(PERMISSIONS.PROJECT_APPROVE) &&
                 project.status === "COMPLETED" &&
-                project.review_status === "PENDING" && (
+                project.review_status === "PENDING" &&
+                !isClient(user) && (
                   <Button
                     variant="success"
                     className="mt-2"
@@ -297,7 +301,7 @@ function ProjectDetails() {
             <Card.Body>
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <Card.Title>Tasks</Card.Title>
-                {(user?.role === "ADMIN" || user?.role === "PROJECT_MANAGER") && (
+                {hasPermission(PERMISSIONS.TASK_CREATE) && !isClient(user) && (
                   <Button onClick={() => setShowAddTaskModal(true)}>
                     Add Task
                   </Button>
@@ -344,7 +348,7 @@ function ProjectDetails() {
                           </Button>
                           {(user?.role === "ADMIN" ||
                             user?.role === "PROJECT_MANAGER" ||
-                            task.assigned_to === user?.id) && (
+                            task.assigned_to === user?.id) && !isClient(user) && (
                             <Button
                               variant="outline-secondary"
                               size="sm"
@@ -355,7 +359,7 @@ function ProjectDetails() {
                             </Button>
                           )}
                           {(user?.role === "ADMIN" ||
-                            user?.role === "PROJECT_MANAGER") && (
+                            user?.role === "PROJECT_MANAGER") && !isClient(user) && (
                             <Button
                               variant="outline-danger"
                               size="sm"

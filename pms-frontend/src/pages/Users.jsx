@@ -9,7 +9,7 @@ import Form from "react-bootstrap/Form";
 import { useAuth } from "../context/AuthContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { adminUsersAPI, projectsAPI, projectMembersAPI } from "../services/api";
-import { PERMISSIONS } from "../utils/permissions";
+import { PERMISSIONS, isClient } from "../utils/permissions";
 
 function Users() {
   const { user } = useAuth();
@@ -212,7 +212,7 @@ function Users() {
             <th>Role</th>
             <th>Status</th>
             <th>Email</th>
-            {canManageRoles && <th>Role Management</th>}
+            {canManageRoles && !isClient(user) && <th>Role Management</th>}
             <th>Project Assignment</th>
           </tr>
         </thead>
@@ -229,7 +229,7 @@ function Users() {
                 </Badge>
               </td>
               <td>{u.email}</td>
-              {canManageRoles && (
+              {canManageRoles && !isClient(user) && (
                 <td>
                   {u.role === "MEMBER" && (
                     <Button
@@ -251,6 +251,7 @@ function Users() {
                   )}
                 </td>
               )}
+              {canManageRoles && isClient(user) && <td></td>}
               <td>
                 <div className="mb-2">
                   <Button

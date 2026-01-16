@@ -12,7 +12,7 @@ import Alert from "react-bootstrap/Alert";
 import { useAuth } from "../context/AuthContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { projectsAPI, usersAPI, projectMembersAPI } from "../services/api";
-import { PERMISSIONS } from "../utils/permissions";
+import { PERMISSIONS, isClient } from "../utils/permissions";
 
 function Projects() {
   const { user } = useAuth();
@@ -215,7 +215,7 @@ function Projects() {
           <h1>Projects</h1>
           <p className="text-muted">All active and completed projects</p>
         </div>
-        {hasPermission(PERMISSIONS.PROJECT_CREATE) && (
+        {hasPermission(PERMISSIONS.PROJECT_CREATE) && !isClient(user) && (
           <Button onClick={() => setShowAddModal(true)}>Add Project</Button>
         )}
       </div>
@@ -312,7 +312,7 @@ function Projects() {
                       View Project
                     </Button>
                   </Link>
-                  {hasPermission(PERMISSIONS.PROJECT_EDIT) && (
+                  {hasPermission(PERMISSIONS.PROJECT_EDIT) && !isClient(user) && (
                     <>
                       <Button
                         variant="outline-secondary"

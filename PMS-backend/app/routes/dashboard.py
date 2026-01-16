@@ -29,7 +29,7 @@ def is_admin(db: Session, user_id: int) -> bool:
     """Check if user is admin."""
     from app.models.role import Role
     from app.models.user_role import UserRole as UserRoleModel
-    
+
     admin_role = db.query(Role).filter(Role.name == "ADMIN").first()
     if admin_role:
         user_role = db.query(UserRoleModel).filter(
@@ -39,16 +39,37 @@ def is_admin(db: Session, user_id: int) -> bool:
         return user_role is not None
     return False
 
+def is_client(db: Session, user_id: int) -> bool:
+    """Check if user has CLIENT role."""
+    from app.models.role import Role
+    from app.models.user_role import UserRole as UserRoleModel
+
+    client_role = db.query(Role).filter(Role.name == "CLIENT").first()
+    if client_role:
+        user_role = db.query(UserRoleModel).filter(
+            UserRoleModel.user_id == user_id,
+            UserRoleModel.role_id == client_role.id
+        ).first()
+        return user_role is not None
+    return False
+
 @router.get("/stats")
 def get_dashboard_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(DASHBOARD_VIEW))
 ):
-    """Get dashboard statistics. Admin users see all projects, others see only assigned projects."""
+    """Get dashboard statistics. CLIENT users see only assigned projects, even if they have broader permissions."""
     stats = {}
 
+    # CLIENT users are ALWAYS restricted to assigned projects
+    if is_client(db, current_user.id):
+        user_projects = db.query(Project).join(ProjectMember).filter(
+            ProjectMember.user_id == current_user.id,
+            Project.is_deleted == False,
+            ProjectMember.is_deleted == False
+        ).all()
     # Check if user has PROJECT_VIEW_ALL permission (admin)
-    if has_permission(db, current_user.id, PROJECT_VIEW_ALL):
+    elif has_permission(db, current_user.id, PROJECT_VIEW_ALL):
         # Admin sees all projects
         user_projects = db.query(Project).filter(Project.is_deleted == False).all()
     else:
