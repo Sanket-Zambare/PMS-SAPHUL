@@ -24,6 +24,7 @@ class UserResponse(UserBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    roles: list[str] = []
 
     class Config:
         from_attributes = True

@@ -1,38 +1,23 @@
-# TODO: Implement Task Review Functionality
+# CLIENT User Display Fixes - Frontend Only
 
-## Tasks Page Updates
-- [x] Add Review Status and Approval Status columns to the tasks table
-- [x] Add "Request Approval" button for assigned members when task status is DONE
-- [x] Add "Approve" and "Reject" buttons for users with TASK_APPROVE permission when approval_status is PENDING
-- [x] Implement API calls for requestApproval, approve, and reject actions
-- [x] Update table row rendering to include new status badges
+## Completed Tasks
 
-## Task Details Page Updates
-- [x] Display review_status and approval_status in task details
-- [x] Add review action buttons in Quick Actions section
-- [x] Show review requested date, reviewed date, and reviewed by information
-- [x] Implement API calls for review actions in details view
+### 1. Update Users.jsx
+- [x] Change role display logic to show "Client (Read-only)" if `user.roles.includes("CLIENT")`
+- [x] Hide Promote/Demote buttons for CLIENT users
+- [x] Hide Remove from project button for CLIENT users in project assignments
 
-## Testing
-- [ ] Test member requesting approval for DONE tasks
-- [ ] Test PM approving/rejecting pending approvals
-- [ ] Verify status updates and notifications
+### 2. Update ProjectDetails.jsx
+- [x] Change member role display to show "Client (Read-only)" if the corresponding user has "CLIENT" in roles
 
-## Bug Fixes
-- [x] Fixed missing helper functions in TaskDetails.jsx (getReviewStatusVariant, getReviewStatusLabel, getApprovalStatusVariant, getApprovalStatusLabel, getUserName)
+## Followup Steps
+- [ ] Test CLIENT users display as "Client (Read-only)" with muted styling
+- [ ] Confirm action buttons are hidden for CLIENT users
+- [ ] Ensure no forbidden API calls trigger for CLIENT users (UI conditionally renders data instead of failing on 403)
 
-## Task: Restrict project and task visibility for CLIENT users
-
-### Completed Steps
-- [x] Added is_client(db, user_id) function in projects.py to check if user has CLIENT role
-- [x] Modified get_projects in projects.py to restrict CLIENT users to assigned projects only
-- [x] Added is_client(db, user_id) function in tasks.py to check if user has CLIENT role
-- [x] Modified get_tasks in tasks.py to restrict CLIENT users to tasks from assigned projects only
-- [x] Updated TODO.md with completion summary
-
-### Summary of Changes
-- CLIENT users now ALWAYS see only projects and tasks where they exist in PROJECT_MEMBERS
-- Non-CLIENT roles (ADMIN, PROJECT_MANAGER, MEMBER) maintain existing behavior
-- No database schema changes
-- No new endpoints or response shape changes
-- Minimal query changes at the database level
+## Notes
+- Used `user.roles.includes("CLIENT")` consistently
+- No backend changes made
+- Minimal, safe frontend edits only
+- CLIENT users show muted "Client (Read-only)" badge
+- Action buttons (Promote, Demote, Remove) hidden for CLIENT users

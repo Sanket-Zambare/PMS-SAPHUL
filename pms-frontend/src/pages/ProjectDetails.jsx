@@ -297,8 +297,8 @@ function ProjectDetails() {
                           <br />
                           <small className="text-muted">{memberUser ? memberUser.email : ''}</small>
                         </div>
-                        <Badge bg={member.role === 'PROJECT_MANAGER' ? 'warning' : 'secondary'}>
-                          {member.role}
+                        <Badge bg={memberUser && memberUser.roles && memberUser.roles.includes("CLIENT") ? 'secondary' : (member.role === 'PROJECT_MANAGER' ? 'warning' : 'secondary')}>
+                          {memberUser && memberUser.roles && memberUser.roles.includes("CLIENT") ? 'Client' : member.role}
                         </Badge>
                       </div>
                     );

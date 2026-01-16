@@ -221,7 +221,11 @@ function Users() {
             <tr key={u.id}>
               <td>{u.name}</td>
               <td>
-                <Badge bg={getRoleVariant(u.role)}>{u.role}</Badge>
+                {u.roles && u.roles.includes("CLIENT") ? (
+                  <Badge bg="secondary">Client (Read-only)</Badge>
+                ) : (
+                  <Badge bg={getRoleVariant(u.role)}>{u.role}</Badge>
+                )}
               </td>
               <td>
                 <Badge bg={u.status === "ACTIVE" ? "success" : "danger"}>
@@ -231,23 +235,27 @@ function Users() {
               <td>{u.email}</td>
               {canManageRoles && !isClient(user) && (
                 <td>
-                  {u.role === "MEMBER" && (
-                    <Button
-                      size="sm"
-                      variant="outline-primary"
-                      onClick={() => handlePromoteToPM(u.id)}
-                    >
-                      Promote to PM
-                    </Button>
-                  )}
-                  {u.role === "PROJECT_MANAGER" && (
-                    <Button
-                      size="sm"
-                      variant="outline-secondary"
-                      onClick={() => handleDemoteToMember(u.id)}
-                    >
-                      Demote to Member
-                    </Button>
+                  {u.roles && u.roles.includes("CLIENT") ? null : (
+                    <>
+                      {u.role === "MEMBER" && (
+                        <Button
+                          size="sm"
+                          variant="outline-primary"
+                          onClick={() => handlePromoteToPM(u.id)}
+                        >
+                          Promote to PM
+                        </Button>
+                      )}
+                      {u.role === "PROJECT_MANAGER" && (
+                        <Button
+                          size="sm"
+                          variant="outline-secondary"
+                          onClick={() => handleDemoteToMember(u.id)}
+                        >
+                          Demote to Member
+                        </Button>
+                      )}
+                    </>
                   )}
                 </td>
               )}
@@ -273,15 +281,17 @@ function Users() {
                             {project ? project.name : `Project ${assignment.project_id}`}
                           </Badge>
                           <small className="me-2">({assignment.role})</small>
-                          <Button
-                            size="sm"
-                            variant="outline-danger"
-                            className="btn-sm py-0 px-1"
-                            onClick={() => handleRemoveFromProject(assignment.id)}
-                            title="Remove from project"
-                          >
-                            ×
-                          </Button>
+                          {!(userProjects[u.id] && userProjects[u.id].find(a => a.id === assignment.id) && users.find(us => us.id === u.id)?.roles?.includes("CLIENT")) && (
+                            <Button
+                              size="sm"
+                              variant="outline-danger"
+                              className="btn-sm py-0 px-1"
+                              onClick={() => handleRemoveFromProject(assignment.id)}
+                              title="Remove from project"
+                            >
+                              ×
+                            </Button>
+                          )}
                         </div>
                       );
                     })}
