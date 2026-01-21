@@ -269,7 +269,16 @@ export const filesAPI = {
     return api.get(`/files?${queryParams}`);
   },
   getById: (id) => api.get(`/files/${id}`),
-  create: (data) => api.post("/files", data),
+  create: (data) => {
+    // For file uploads, we need to remove the default Content-Type header
+    // so the browser can set it with the proper boundary for multipart/form-data
+    return api.post("/files/upload", data, {
+      headers: {
+        ...api.defaults.headers,
+        'Content-Type': undefined, // Let browser set this for FormData
+      },
+    });
+  },
   delete: (id) => api.delete(`/files/${id}`),
 };
 

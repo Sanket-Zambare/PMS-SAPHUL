@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.database import engine
 from app.routes.invitations import router as invitations
@@ -23,6 +24,7 @@ from app.routes import (
     dashboard,
 )
 import traceback
+import os
 
 app = FastAPI(title="SAPHUL PMS Backend")
 
@@ -36,7 +38,8 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-
+# Mount static files for uploads
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Include routers
 app.include_router(auth)

@@ -136,6 +136,7 @@ def seed_database():
             "USER_VIEW",
             "TIME_LOG_CREATE",
             "SPRINT_CREATE", "SPRINT_VIEW", "SPRINT_EDIT", "SPRINT_DELETE",
+            "FILE_UPLOAD", "FILE_VIEW", "FILE_DELETE",
             "DASHBOARD_VIEW",
         ]
         for perm_code in pm_permissions:

@@ -2,13 +2,15 @@
 File routes with permission-based authorization.
 Files store metadata only - actual files in cloud storage.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from datetime import datetime
+import os
+import uuid
 from app.core.security import (
-    get_db, 
-    get_current_user, 
+    get_db,
+    get_current_user,
     require_permission,
 )
 from app.core.permissions import (
@@ -25,6 +27,111 @@ from app.services.activity_log_service import create_activity_log
 from app.models.activity_log import EntityType
 
 router = APIRouter(prefix="/files", tags=["Files"])
+
+@router.post("/upload", response_model=FileResponse, status_code=status.HTTP_201_CREATED)
+def upload_file(
+    file: UploadFile,
+    project_id: int = Form(...),
+    task_id: Optional[int] = Form(None),
+    version: Optional[str] = Form(None),
+    is_latest: bool = Form(True),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(FILE_UPLOAD))
+):
+    """Upload file and create metadata. Requires FILE_UPLOAD permission."""
+    # Verify project exists
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.is_deleted == False
+    ).first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
+        )
+
+    # Verify task exists if provided
+    if task_id:
+        task = db.query(Task).filter(
+            Task.id == task_id,
+            Task.is_deleted == False
+        ).first()
+        if not task:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Task not found"
+            )
+
+    # Create upload directory if it doesn't exist
+    upload_dir = f"uploads/projects/{project_id}"
+    os.makedirs(upload_dir, exist_ok=True)
+
+    # Generate unique filename
+    file_extension = os.path.splitext(file.filename)[1]
+    unique_filename = f"{uuid.uuid4()}{file_extension}"
+    file_path = os.path.join(upload_dir, unique_filename)
+
+    # Save file
+    try:
+        with open(file_path, "wb") as buffer:
+            content = file.file.read()
+            buffer.write(content)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save file: {str(e)}"
+        )
+
+    # If this is marked as latest, unmark other latest files
+    if is_latest:
+        existing_latest = db.query(File).filter(
+            File.project_id == project_id,
+            File.task_id == task_id,
+            File.is_latest == True,
+            File.is_deleted == False
+        ).all()
+        for f in existing_latest:
+            f.is_latest = False
+
+    # Get next version number if not provided
+    if not version:
+        max_version_file = db.query(File).filter(
+            File.project_id == project_id,
+            File.task_id == task_id,
+            File.is_deleted == False
+        ).order_by(File.version.desc()).first()
+
+        version = str(int(max_version_file.version) + 1) if max_version_file and max_version_file.version else "1"
+
+    # Create file record
+    file_url = f"/uploads/projects/{project_id}/{unique_filename}"
+    file_record = File(
+        project_id=project_id,
+        task_id=task_id,
+        uploaded_by=current_user.id,
+        file_name=file.filename,
+        file_type=file.content_type,
+        file_url=file_url,
+        version=version,
+        is_latest=is_latest
+    )
+    db.add(file_record)
+    db.commit()
+    db.refresh(file_record)
+
+    # Log activity
+    try:
+        create_activity_log(
+            db=db,
+            entity_type=EntityType.FILE,
+            entity_id=file_record.id,
+            action="upload",
+            performed_by=current_user.id
+        )
+    except Exception as e:
+        print(f"Warning: Failed to log activity: {e}")
+
+    return file_record
 
 @router.post("/", response_model=FileResponse, status_code=status.HTTP_201_CREATED)
 def create_file(
@@ -43,7 +150,7 @@ def create_file(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found"
         )
-    
+
     # Verify task exists if provided
     if file_data.task_id:
         task = db.query(Task).filter(
@@ -55,7 +162,7 @@ def create_file(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Task not found"
             )
-    
+
     # If this is marked as latest, unmark other latest files
     if file_data.is_latest:
         existing_latest = db.query(File).filter(
@@ -66,16 +173,16 @@ def create_file(
         ).all()
         for file in existing_latest:
             file.is_latest = False
-    
+
     # Get next version number
     max_version_file = db.query(File).filter(
         File.project_id == file_data.project_id,
         File.task_id == file_data.task_id,
         File.is_deleted == False
     ).order_by(File.version.desc()).first()
-    
+
     version = str(int(max_version_file.version) + 1) if max_version_file and max_version_file.version else "1"
-    
+
     file = File(
         project_id=file_data.project_id,
         task_id=file_data.task_id,
@@ -89,7 +196,7 @@ def create_file(
     db.add(file)
     db.commit()
     db.refresh(file)
-    
+
     # Log activity
     try:
         create_activity_log(
@@ -101,7 +208,7 @@ def create_file(
         )
     except Exception as e:
         print(f"Warning: Failed to log activity: {e}")
-    
+
     return file
 
 @router.get("/", response_model=List[FileResponse])

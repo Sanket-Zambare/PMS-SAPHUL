@@ -21,6 +21,7 @@ import {
   activityLogsAPI,
   dashboardAPI,
   invitationsAPI,
+  filesAPI,
 } from "../services/api";
 
 function ProjectDetails() {
@@ -51,6 +52,13 @@ function ProjectDetails() {
     due_date: "",
   });
   const [inviteEmail, setInviteEmail] = useState("");
+  const [files, setFiles] = useState([]);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadForm, setUploadForm] = useState({
+    version: "",
+    is_latest: true,
+  });
 
   useEffect(() => {
     fetchProjectData();
@@ -68,6 +76,7 @@ function ProjectDetails() {
       if (!isClient(user)) {
         promises.push(activityLogsAPI.getByProject(projectId, 0, 20));
         promises.push(dashboardAPI.getProjectStats(projectId));
+        promises.push(filesAPI.getAll({ project_id: projectId }));
       }
 
       const results = await Promise.all(promises);
@@ -79,9 +88,12 @@ function ProjectDetails() {
       let logsRes = { data: [] };
       let statsRes = null;
 
+      let filesRes = { data: [] };
+
       if (!isClient(user)) {
         logsRes = results[4];
         statsRes = results[5];
+        filesRes = results[6];
       }
 
       setProject(projectRes.data);
@@ -90,6 +102,7 @@ function ProjectDetails() {
       setUsers(usersRes.data);
       setActivityLogs(logsRes.data);
       setStats(statsRes?.data || null);
+      setFiles(filesRes.data || []);
     } catch (error) {
       console.error("Failed to fetch project data:", error);
       setError("Failed to load project data");
@@ -165,6 +178,64 @@ function ProjectDetails() {
       alert("Invitation sent successfully.");
     } catch (error) {
       alert("Failed to send invitation.");
+    }
+  };
+
+  const handleDeleteFile = async (fileId) => {
+    if (window.confirm("Are you sure you want to delete this file?")) {
+      try {
+        await filesAPI.delete(fileId);
+        setFiles(files.filter((f) => f.id !== fileId));
+      } catch (error) {
+        setError(error.response?.data?.detail || "Failed to delete file");
+      }
+    }
+  };
+
+  const handleFileUpload = async () => {
+    if (!selectedFile) {
+      setError("Please select a file to upload");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('project_id', String(projectId)); // Ensure it's a string for FormData
+      // Don't send task_id if not specified (let backend use default None)
+      formData.append('version', uploadForm.version || '1.0');
+      formData.append('is_latest', String(uploadForm.is_latest)); // Convert boolean to string
+
+      const response = await filesAPI.create(formData);
+      setFiles([...files, response.data]);
+      setShowUploadModal(false);
+      setSelectedFile(null);
+      setUploadForm({ version: "", is_latest: true });
+      setError(""); // Clear any previous errors
+    } catch (error) {
+      console.error("File upload error:", error);
+      let errorMessage = "Failed to upload file";
+
+      if (error.response) {
+        // Server responded with error status
+        if (error.response.status === 422) {
+          errorMessage = "Invalid file upload data. Please check all fields.";
+        } else if (error.response.status === 403) {
+          errorMessage = "You don't have permission to upload files.";
+        } else if (error.response.status === 404) {
+          errorMessage = "Project not found.";
+        } else if (error.response.data?.detail) {
+          errorMessage = error.response.data.detail;
+        } else if (error.response.data?.message) {
+          errorMessage = error.response.data.message;
+        }
+      } else if (error.request) {
+        // Network error
+        errorMessage = "Network error. Please check your connection.";
+      }
+
+      setError(errorMessage);
+      // Don't close modal on error so user can retry
     }
   };
 
@@ -335,7 +406,7 @@ function ProjectDetails() {
         </Col>
 
         <Col md={8}>
-          <Card>
+          <Card className="mb-3">
             <Card.Body>
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <Card.Title>Tasks</Card.Title>
@@ -414,6 +485,65 @@ function ProjectDetails() {
               )}
             </Card.Body>
           </Card>
+
+          {!isClient(user) && (
+            <Card>
+              <Card.Body>
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <Card.Title>Project Files</Card.Title>
+                  {hasPermission(PERMISSIONS.FILE_UPLOAD) && (
+                    <Button onClick={() => setShowUploadModal(true)}>
+                      Upload File
+                    </Button>
+                  )}
+                </div>
+                {files.length === 0 ? (
+                  <p className="text-muted">No files uploaded for this project yet.</p>
+                ) : (
+                  <Table bordered hover responsive>
+                    <thead>
+                      <tr>
+                        <th>File Name</th>
+                        <th>Version</th>
+                        <th>Uploaded By</th>
+                        <th>Upload Date</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {files.map((file) => (
+                        <tr key={file.id}>
+                          <td>{file.file_name}</td>
+                          <td>{file.version}</td>
+                          <td>{getUserName(file.uploaded_by)}</td>
+                          <td>{new Date(file.created_at).toLocaleDateString()}</td>
+                          <td>
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              className="me-2"
+                              onClick={() => window.open(`http://localhost:8000${file.file_url}`, '_blank')}
+                            >
+                              Download
+                            </Button>
+                            {hasPermission(PERMISSIONS.FILE_DELETE) && (
+                              <Button
+                                variant="outline-danger"
+                                size="sm"
+                                onClick={() => handleDeleteFile(file.id)}
+                              >
+                                Delete
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                )}
+              </Card.Body>
+            </Card>
+          )}
         </Col>
       </Row>
 
@@ -640,6 +770,53 @@ function ProjectDetails() {
             disabled={!inviteEmail.trim()}
           >
             Send Invitation
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Upload File Modal */}
+      <Modal show={showUploadModal} onHide={() => setShowUploadModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Upload File</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Select File</Form.Label>
+              <Form.Control
+                type="file"
+                onChange={(e) => setSelectedFile(e.target.files[0])}
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Version</Form.Label>
+              <Form.Control
+                type="text"
+                value={uploadForm.version}
+                onChange={(e) => setUploadForm({ ...uploadForm, version: e.target.value })}
+                placeholder="e.g., 1.0, 2.1"
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Check
+                type="checkbox"
+                label="Mark as latest version"
+                checked={uploadForm.is_latest}
+                onChange={(e) => setUploadForm({ ...uploadForm, is_latest: e.target.checked })}
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowUploadModal(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleFileUpload}
+            disabled={!selectedFile}
+          >
+            Upload File
           </Button>
         </Modal.Footer>
       </Modal>
