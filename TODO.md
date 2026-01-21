@@ -1,23 +1,11 @@
-# CLIENT User Display Fixes - Frontend Only
+# Fix Project Manager Task Visibility Issue
 
-## Completed Tasks
+## Problem
+Project managers (including newly created ones) cannot see the task list because the `get_tasks` function uses `is_project_manager()` which checks for the global PROJECT_MANAGER role, but project managers are assigned per-project in the `project_members` table.
 
-### 1. Update Users.jsx
-- [x] Change role display logic to show "Client (Read-only)" if `user.roles.includes("CLIENT")`
-- [x] Hide Promote/Demote buttons for CLIENT users
-- [x] Hide Remove from project button for CLIENT users in project assignments
+## Solution
+Update the `is_project_manager` function in `tasks.py` to check for project manager assignments in the `project_members` table instead of the global role.
 
-### 2. Update ProjectDetails.jsx
-- [x] Change member role display to show "Client (Read-only)" if the corresponding user has "CLIENT" in roles
-
-## Followup Steps
-- [ ] Test CLIENT users display as "Client (Read-only)" with muted styling
-- [ ] Confirm action buttons are hidden for CLIENT users
-- [ ] Ensure no forbidden API calls trigger for CLIENT users (UI conditionally renders data instead of failing on 403)
-
-## Notes
-- Used `user.roles.includes("CLIENT")` consistently
-- No backend changes made
-- Minimal, safe frontend edits only
-- CLIENT users show muted "Client (Read-only)" badge
-- Action buttons (Promote, Demote, Remove) hidden for CLIENT users
+## Tasks
+- [ ] Update `is_project_manager` function in `PMS-backend/app/routes/tasks.py`
+- [ ] Test the fix to ensure project managers can see tasks from their projects

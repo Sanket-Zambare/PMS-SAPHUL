@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from datetime import timedelta, datetime
 from pydantic import BaseModel, EmailStr, validator
 import secrets
@@ -146,9 +147,9 @@ async def login(
             detail="Invalid email format"
         )
     
-    # Check if email exists
+    # Check if email exists (case-insensitive)
     user = db.query(User).filter(
-        User.email == user_credentials.email,
+        func.lower(User.email) == func.lower(user_credentials.email),
         User.is_deleted == False
     ).first()
     
@@ -201,7 +202,7 @@ async def forgot_password(
     Request password reset. Generates a token and sends email.
     """
     user = db.query(User).filter(
-        User.email == request.email,
+        func.lower(User.email) == func.lower(request.email),
         User.is_deleted == False
     ).first()
 

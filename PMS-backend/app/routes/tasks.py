@@ -66,6 +66,18 @@ def is_client(db: Session, user_id: int) -> bool:
         return user_role is not None
     return False
 
+def is_project_manager(db: Session, user_id: int) -> bool:
+    """Check if user is assigned as PROJECT_MANAGER for any project."""
+    from app.models.project_member import ProjectMember, ProjectMemberRole
+
+    # Check if user is assigned as project manager for any project
+    pm_assignment = db.query(ProjectMember).filter(
+        ProjectMember.user_id == user_id,
+        ProjectMember.role == ProjectMemberRole.PROJECT_MANAGER,
+        ProjectMember.is_deleted == False
+    ).first()
+    return pm_assignment is not None
+
 def can_access_project(db: Session, user_id: int, project_id: int) -> bool:
     """Check if user can access a project (admin or project member)."""
     # Admin can access all projects
@@ -168,7 +180,8 @@ def get_tasks(
     Get tasks.
     - CLIENT users see only tasks from projects they are members of
     - Admin users see all tasks (unless CLIENT role)
-    - Other users see only tasks from projects they are members of
+    - PROJECT_MANAGER users see all tasks from projects they manage
+    - Other users see only tasks assigned to them from projects they are members of
     - Can filter by assigned_to to see only own tasks
     - Can filter by project_ids (comma-separated) for multiple projects
     """
@@ -191,8 +204,8 @@ def get_tasks(
     # Check if user is admin - they can see all tasks
     elif has_global_project_view(db, current_user.id):
         query = db.query(Task).filter(Task.is_deleted == False)
-    else:
-        # Non-admin users see only tasks from their projects
+    # Check if user is project manager - they can see all tasks from their projects
+    elif is_project_manager(db, current_user.id):
         user_project_ids = db.query(ProjectMember.project_id).filter(
             ProjectMember.user_id == current_user.id,
             ProjectMember.is_deleted == False
@@ -205,6 +218,23 @@ def get_tasks(
 
         query = db.query(Task).filter(
             Task.project_id.in_(user_project_id_list),
+            Task.is_deleted == False
+        )
+    else:
+        # Regular members see only tasks assigned to them from their projects
+        user_project_ids = db.query(ProjectMember.project_id).filter(
+            ProjectMember.user_id == current_user.id,
+            ProjectMember.is_deleted == False
+        ).all()
+        user_project_id_list = [pm.project_id for pm in user_project_ids]
+
+        if not user_project_id_list:
+            # User has no project memberships
+            return []
+
+        query = db.query(Task).filter(
+            Task.project_id.in_(user_project_id_list),
+            Task.assigned_to == current_user.id,
             Task.is_deleted == False
         )
 
@@ -310,11 +340,22 @@ def update_task(
             detail="Only assigned members can update this task"
         )
     
-    # If not admin/pm, only allow status updates to specific values
+    # If not admin/pm, restrict what assigned members can edit
     if not has_edit_permission and is_assigned:
-        # Only allow status updates for assigned members
+        # Members can NEVER edit title or description, only status
         update_data = task_data.dict(exclude_unset=True)
+        restricted_fields = ['title', 'description']
         allowed_fields = ['status']
+
+        # Remove restricted fields
+        for field in restricted_fields:
+            if field in update_data:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Members cannot edit the {field} of tasks"
+                )
+
+        # Only allow status updates for assigned members
         for field in list(update_data.keys()):
             if field not in allowed_fields:
                 del update_data[field]
@@ -330,9 +371,21 @@ def update_task(
     else:
         update_data = task_data.dict(exclude_unset=True)
     
+    # Validate status transitions - prevent regression once task is in final states
+    if 'status' in update_data:
+        new_status = update_data['status']
+
+        # Prevent changing back to TODO or IN_PROGRESS once task is DONE, APPROVED, or UNDER_REVIEW
+        if task.status in [TaskStatus.DONE] or task.review_status in [TaskReviewStatus.UNDER_REVIEW, TaskReviewStatus.APPROVED]:
+            if new_status in [TaskStatus.TODO, TaskStatus.IN_PROGRESS]:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Cannot change task status back to {new_status.value} once it has been completed or is under review"
+                )
+
     # Track changes
     status_changed = 'status' in update_data and update_data['status'] != task.status
-    
+
     # Update fields
     for field, value in update_data.items():
         setattr(task, field, value)

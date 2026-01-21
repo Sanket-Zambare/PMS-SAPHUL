@@ -9,10 +9,12 @@ from app.models.role import Role
 from app.models.user_role import UserRole
 from app.models.permission import Permission
 from app.models.role_permission import RolePermission
+from app.models.project_member import ProjectMember, ProjectMemberRole
 
 def get_user_permissions(db: Session, user_id: int) -> list[str]:
     """
-    Get all permission codes for a user based on their roles.
+    Get all permission codes for a user based on their roles and project assignments.
+    If a user is assigned as PROJECT_MANAGER for any project, they get PROJECT_MANAGER permissions.
     Returns empty list if user has no roles or permissions.
     Must not crash if data is missing.
     """
@@ -21,27 +23,40 @@ def get_user_permissions(db: Session, user_id: int) -> list[str]:
         user_roles = db.query(UserRole).filter(
             UserRole.user_id == user_id
         ).all()
-        
-        if not user_roles:
+
+        role_ids = [ur.role_id for ur in user_roles] if user_roles else []
+
+        # Check if user is a project manager for any project
+        project_manager_assignments = db.query(ProjectMember).filter(
+            ProjectMember.user_id == user_id,
+            ProjectMember.role == ProjectMemberRole.PROJECT_MANAGER,
+            ProjectMember.is_deleted == False
+        ).all()
+
+        # If user is a project manager for any project, add PROJECT_MANAGER role permissions
+        if project_manager_assignments:
+            pm_role = db.query(Role).filter(Role.name == "PROJECT_MANAGER").first()
+            if pm_role and pm_role.id not in role_ids:
+                role_ids.append(pm_role.id)
+
+        if not role_ids:
             return []
-        
-        role_ids = [ur.role_id for ur in user_roles]
-        
+
         # Get permissions for these roles
         role_permissions = db.query(RolePermission).filter(
             RolePermission.role_id.in_(role_ids)
         ).all()
-        
+
         if not role_permissions:
             return []
-        
+
         permission_ids = [rp.permission_id for rp in role_permissions]
-        
+
         # Get permission codes
         permissions = db.query(Permission).filter(
             Permission.id.in_(permission_ids)
         ).all()
-        
+
         return [p.code for p in permissions]
     except Exception as e:
         print(f"Error fetching permissions: {e}")
