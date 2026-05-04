@@ -121,7 +121,7 @@ def get_projects(
     limit: int = 100,
     status_filter: ProjectStatus = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_permission([PROJECT_VIEW_ALL, PROJECT_VIEW_ASSIGNED]))
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get projects.
@@ -129,9 +129,16 @@ def get_projects(
     - CLIENT users see only projects they are assigned to
     - Other users see only projects they are assigned to (any role)
     """
+    # Permission gate (with CLIENT fallback for read-only access)
+    if not has_any_permission(db, current_user.id, [PROJECT_VIEW_ALL, PROJECT_VIEW_ASSIGNED]) and not is_client(db, current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"One of these permissions required: {PROJECT_VIEW_ALL}, {PROJECT_VIEW_ASSIGNED}"
+        )
+
     # CLIENT users are ALWAYS restricted to assigned projects
     if is_client(db, current_user.id):
-        query = db.query(Project).join(ProjectMember).filter(
+        query = db.query(Project).join(ProjectMember, Project.id == ProjectMember.project_id).filter(
             ProjectMember.user_id == current_user.id,
             Project.is_deleted == False,
             ProjectMember.is_deleted == False
@@ -158,9 +165,16 @@ def get_projects(
 def get_project(
     project_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission(PROJECT_VIEW_ASSIGNED))
+    current_user: User = Depends(get_current_user)
 ):
     """Get a specific project by ID. Only accessible to project members or admin."""
+    # Permission gate (with CLIENT fallback for read-only access)
+    if not has_permission(db, current_user.id, PROJECT_VIEW_ASSIGNED) and not is_client(db, current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Permission required: {PROJECT_VIEW_ASSIGNED}"
+        )
+
     project = db.query(Project).filter(
         Project.id == project_id,
         Project.is_deleted == False

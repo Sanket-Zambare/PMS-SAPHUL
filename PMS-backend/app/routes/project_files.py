@@ -63,7 +63,20 @@ def upload_file(
             )
 
     # Create upload directory if it doesn't exist
-    upload_dir = f"uploads/projects/{project_id}"
+    # =========================
+    # ==== PRODUCTION (HOSTINGER) ====
+    # Uncomment this for production deployment
+    # Use absolute path: /home/username/uploads/projects/{project_id}
+    # =========================
+    # PRODUCTION upload directory (uncomment and set your production path):
+    # upload_dir = f"/home/username/uploads/projects/{project_id}"
+    
+    # =========================
+    # ==== LOCAL (REMOVE FOR PROD) ====
+    # REMOVE OR COMMENT THIS FOR PRODUCTION
+    # =========================
+    upload_dir = f"uploads/projects/{project_id}"  # LOCAL ONLY - relative path
+    
     os.makedirs(upload_dir, exist_ok=True)
 
     # Generate unique filename

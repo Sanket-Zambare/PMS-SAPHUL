@@ -522,7 +522,25 @@ function ProjectDetails() {
                               variant="outline-primary"
                               size="sm"
                               className="me-2"
-                              onClick={() => window.open(`http://localhost:8000${file.file_url}`, '_blank')}
+                              onClick={() => {
+                                /*
+                                =========================
+                                ==== PRODUCTION (HOSTINGER) ====
+                                Uncomment this for production
+                                =========================
+                                */
+                                // const fileDownloadUrl = `https://api.yourdomain.com${file.file_url}`;
+                                
+                                /*
+                                =========================
+                                ==== LOCAL (REMOVE FOR PROD) ====
+                                REMOVE OR COMMENT THIS FOR PRODUCTION
+                                =========================
+                                */
+                                const fileDownloadUrl = `http://localhost:8000${file.file_url}`;
+                                
+                                window.open(fileDownloadUrl, '_blank');
+                              }}
                             >
                               Download
                             </Button>

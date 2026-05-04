@@ -7,74 +7,70 @@ import Button from "react-bootstrap/Button";
 
 function Sidebars() {
   const { user, logout } = useAuth();
-  const { permissions } = usePermissions();
   const navigate = useNavigate();
-
-  const linkStyle = ({ isActive }) => ({
-    display: "block",
-    padding: "10px 0",
-    color: isActive ? "#0d6efd" : "#000",
-    fontWeight: isActive ? "bold" : "normal",
-    textDecoration: "none",
-    cursor: "pointer",
-  });
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
+  const userInitial = user?.name?.trim()?.charAt(0)?.toUpperCase() || "U";
+  const userRole = user?.role || user?.roles?.[0] || "Team member";
+
   return (
-    <div
-      style={{
-        width: "220px",
-        backgroundColor: "#f8f9fa",
-        padding: "20px",
-        borderRight: "1px solid #ddd",
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-      }}
-    >
-      <h4>SAPHUL PMS</h4>
+    <aside className="app-sidebar">
+      <div className="brand-lockup">
+        <div className="brand-mark">S</div>
+        <div>
+          <p className="brand-title">SAPHUL PMS</p>
+          <p className="brand-subtitle">Project workspace</p>
+        </div>
+      </div>
+
       {user && (
-        <div style={{ marginTop: "10px", marginBottom: "20px" }}>
-          <small className="text-muted">
-            {user.name}
-          </small>
+        <div className="user-strip">
+          <div className="user-avatar">{userInitial}</div>
+          <div>
+            <div className="user-name">{user.name}</div>
+            <div className="user-role">{userRole}</div>
+          </div>
         </div>
       )}
 
-      <nav style={{ marginTop: "10px", flex: 1 }}>
+      <nav className="side-nav">
         <PermissionGate permission={PERMISSIONS.DASHBOARD_VIEW}>
-          <NavLink to="/" style={linkStyle}>
-            Dashboard
+          <NavLink to="/" className="side-link">
+            <span className="side-icon">D</span>
+            <span>Dashboard</span>
           </NavLink>
         </PermissionGate>
 
         <PermissionGate permissions={[PERMISSIONS.PROJECT_VIEW_ALL, PERMISSIONS.PROJECT_VIEW_ASSIGNED]}>
-          <NavLink to="/projects" style={linkStyle}>
-            Projects
+          <NavLink to="/projects" className="side-link">
+            <span className="side-icon">P</span>
+            <span>Projects</span>
           </NavLink>
         </PermissionGate>
 
         <PermissionGate permission={PERMISSIONS.TASK_VIEW}>
-          <NavLink to="/tasks" style={linkStyle}>
-            Tasks
+          <NavLink to="/tasks" className="side-link">
+            <span className="side-icon">T</span>
+            <span>Tasks</span>
           </NavLink>
         </PermissionGate>
 
         <PermissionGate permission={PERMISSIONS.USER_VIEW_ALL}>
-          <NavLink to="/users" style={linkStyle}>
-            Users
+          <NavLink to="/users" className="side-link">
+            <span className="side-icon">U</span>
+            <span>Users</span>
           </NavLink>
         </PermissionGate>
       </nav>
 
-      <Button variant="outline-danger" onClick={handleLogout} className="w-100">
+      <Button onClick={handleLogout} className="logout-button w-100">
         Logout
       </Button>
-    </div>
+    </aside>
   );
 }
 

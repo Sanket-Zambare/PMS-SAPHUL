@@ -74,7 +74,7 @@ def get_dashboard_stats(
         user_projects = db.query(Project).filter(Project.is_deleted == False).all()
     else:
         # Non-admin users see only assigned projects
-        user_projects = db.query(Project).join(ProjectMember).filter(
+        user_projects = db.query(Project).join(ProjectMember, Project.id == ProjectMember.project_id).filter(
             ProjectMember.user_id == current_user.id,
             Project.is_deleted == False,
             ProjectMember.is_deleted == False

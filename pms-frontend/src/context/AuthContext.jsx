@@ -106,7 +106,22 @@ export const AuthProvider = ({ children }) => {
       let errorMessage = "Login failed";
       
       if (error.code === "ECONNREFUSED" || error.message.includes("Network Error")) {
-        errorMessage = "Cannot connect to server. Please ensure the backend is running on http://localhost:8000";
+        /*
+        =========================
+        ==== PRODUCTION (HOSTINGER) ====
+        Update error message for production
+        =========================
+        */
+        // PRODUCTION error message (uncomment for production):
+        // errorMessage = "Cannot connect to server. Please check your connection.";
+        
+        /*
+        =========================
+        ==== LOCAL (REMOVE FOR PROD) ====
+        REMOVE OR COMMENT THIS FOR PRODUCTION
+        =========================
+        */
+        errorMessage = "Cannot connect to server. Please ensure the backend is running on http://localhost:8000";  // LOCAL ONLY
       } else if (error.response) {
         errorMessage = error.response.data?.detail || error.response.data?.message || "Login failed";
       } else if (error.request) {

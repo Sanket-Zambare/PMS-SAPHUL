@@ -17,11 +17,11 @@ import "bootstrap/dist/css/bootstrap.min.css";
 
 function Layout() {
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
+    <div className="app-shell">
       <Sidebars />
-      <div style={{ flex: 1, padding: "20px" }}>
+      <main className="app-main">
         <Outlet />
-      </div>
+      </main>
     </div>
   );
 }

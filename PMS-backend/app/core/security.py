@@ -16,7 +16,21 @@ from app.services.permission_service import get_user_permissions, has_permission
 # Password hashing - using bcrypt directly
 
 # JWT settings
-SECRET_KEY = "your-secret-key-change-in-production"  # Change in production
+# =========================
+# ==== PRODUCTION (HOSTINGER) ====
+# Uncomment this for production deployment
+# Use environment variable: JWT_SECRET=your-production-secret-key-here
+# =========================
+# PRODUCTION secret key (uncomment and set strong production secret):
+# SECRET_KEY = os.getenv("JWT_SECRET", "your-production-secret-key-change-this-in-production")
+
+# =========================
+# ==== LOCAL (REMOVE FOR PROD) ====
+# REMOVE OR COMMENT THIS FOR PRODUCTION
+# =========================
+import os
+SECRET_KEY = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")  # LOCAL ONLY - development secret
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

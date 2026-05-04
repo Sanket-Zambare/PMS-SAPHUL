@@ -100,7 +100,7 @@ def get_users(
             ProjectMember.is_deleted == False
         ).subquery()
 
-        users = db.query(User).join(ProjectMember).filter(
+        users = db.query(User).join(ProjectMember, User.id == ProjectMember.user_id).filter(
             ProjectMember.project_id.in_(user_project_ids),
             User.is_deleted == False,
             ProjectMember.is_deleted == False

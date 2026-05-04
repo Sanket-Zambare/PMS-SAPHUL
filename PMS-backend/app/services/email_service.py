@@ -72,7 +72,20 @@ class EmailService:
     def send_password_reset_email(self, user_email: str, reset_token: str, user_name: str) -> None:
         """Send password reset email with secure token."""
         subject = "Password Reset - Saphul PMS"
-        reset_url = f"http://localhost:3000/reset-password?token={reset_token}"  # TODO: Use actual frontend URL
+        # =========================
+        # ==== PRODUCTION (HOSTINGER) ====
+        # Uncomment this for production deployment
+        # Frontend: https://app.yourdomain.com
+        # =========================
+        # PRODUCTION reset URL (uncomment and set your production frontend URL):
+        # frontend_url = os.getenv("FRONTEND_URL", "https://app.yourdomain.com")
+        # reset_url = f"{frontend_url}/reset-password?token={reset_token}"
+        
+        # =========================
+        # ==== LOCAL (REMOVE FOR PROD) ====
+        # REMOVE OR COMMENT THIS FOR PRODUCTION
+        # =========================
+        reset_url = f"http://localhost:3000/reset-password?token={reset_token}"  # LOCAL ONLY - development frontend URL
 
         html_content = f"""
         <html>
@@ -97,7 +110,20 @@ class EmailService:
     def send_invite_email(self, email: str, token: str, name: str) -> None:
         """Send client invitation email."""
         subject = "Invitation to join Saphul PMS"
-        invite_url = f"http://localhost:3000/accept-invite?token={token}"  # TODO: Use actual frontend URL
+        # =========================
+        # ==== PRODUCTION (HOSTINGER) ====
+        # Uncomment this for production deployment
+        # Frontend: https://app.yourdomain.com
+        # =========================
+        # PRODUCTION invite URL (uncomment and set your production frontend URL):
+        # frontend_url = os.getenv("FRONTEND_URL", "https://app.yourdomain.com")
+        # invite_url = f"{frontend_url}/accept-invite?token={token}"
+        
+        # =========================
+        # ==== LOCAL (REMOVE FOR PROD) ====
+        # REMOVE OR COMMENT THIS FOR PRODUCTION
+        # =========================
+        invite_url = f"http://localhost:3000/accept-invite?token={token}"  # LOCAL ONLY - development frontend URL
 
         html_content = f"""
         <html>

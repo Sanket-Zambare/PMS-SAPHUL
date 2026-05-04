@@ -19,7 +19,7 @@ from app.schemas.user import UserResponse, UserLogin, UserCreate
 from app.models.user import User, UserStatus
 from app.models.role import Role
 from app.models.user_role import UserRole as UserRoleModel
-from app.services.permission_service import get_user_permissions
+from app.services.permission_service import get_user_permissions, get_user_roles
 from app.services.email_service import email_service
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -319,4 +319,9 @@ async def get_current_user_info(
     db: Session = Depends(get_db)
 ):
     """Get current authenticated user information."""
+    # Ensure roles are present for frontend role-based UX (e.g., CLIENT read-only views)
+    try:
+        current_user.roles = get_user_roles(db, current_user.id)
+    except Exception:
+        current_user.roles = []
     return current_user

@@ -120,3 +120,5 @@ def has_all_permissions(db: Session, user_id: int, permission_codes: list[str]) 
         return False
 
 
+
+

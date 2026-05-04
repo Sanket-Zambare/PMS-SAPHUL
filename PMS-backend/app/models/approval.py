@@ -26,3 +26,5 @@ class Approval(Base):
     remarks = Column(Text, nullable=True)
 
 
+
+

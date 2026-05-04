@@ -8,3 +8,5 @@ class Permission(Base):
     code = Column(String(50), unique=True, nullable=False, index=True)
 
 
+
+

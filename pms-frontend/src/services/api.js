@@ -4,6 +4,22 @@ import { mockAPI } from "./mockData";
 // Set to true to use mock data instead of real API
 const USE_MOCK_DATA = false;
 
+/*
+=========================
+==== PRODUCTION (HOSTINGER) ====
+Uncomment this for production deployment
+Frontend: https://app.yourdomain.com
+Backend API: https://api.yourdomain.com
+=========================
+*/
+// const API_BASE_URL = "https://api.yourdomain.com";
+
+/*
+=========================
+==== LOCAL (REMOVE FOR PROD) ====
+REMOVE OR COMMENT THIS FOR PRODUCTION
+=========================
+*/
 const API_BASE_URL = "http://localhost:8000";
 
 // Create axios instance

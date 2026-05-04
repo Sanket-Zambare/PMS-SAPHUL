@@ -5,7 +5,6 @@ import Container from "react-bootstrap/Container";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import Button from "react-bootstrap/Button";
-import Badge from "react-bootstrap/Badge";
 import Modal from "react-bootstrap/Modal";
 import Form from "react-bootstrap/Form";
 import Alert from "react-bootstrap/Alert";
@@ -91,7 +90,7 @@ function Projects() {
 
       // Assign project manager if selected
       if (selectedProjectManager) {
-        await projectMembersAPI.assign({
+        await projectMembersAPI.add({
           project_id: projectId,
           user_id: selectedProjectManager,
           role: "PROJECT_MANAGER"
@@ -100,7 +99,7 @@ function Projects() {
 
       // Assign members if selected
       for (const memberId of selectedMembers) {
-        await projectMembersAPI.assign({
+        await projectMembersAPI.add({
           project_id: projectId,
           user_id: memberId,
           role: "MEMBER"
@@ -159,10 +158,11 @@ function Projects() {
     setShowEditModal(true);
   };
 
-  const getStatusVariant = (status) => {
-    if (status === "COMPLETED") return "success";
-    if (status === "IN_PROGRESS") return "warning";
-    return "secondary";
+  const getStatusClass = (status) => {
+    if (status === "COMPLETED") return "status-pill status-success";
+    if (status === "IN_PROGRESS") return "status-pill status-warning";
+    if (status === "DELAYED") return "status-pill status-danger";
+    return "status-pill status-secondary";
   };
 
   const getStatusLabel = (status) => {
@@ -202,18 +202,19 @@ function Projects() {
 
   if (loading) {
     return (
-      <Container fluid className="mt-3">
-        <div>Loading...</div>
+      <Container fluid className="page-shell">
+        <div className="loading-state">Loading projects...</div>
       </Container>
     );
   }
 
   return (
-    <Container fluid className="mt-3">
-      <div className="d-flex justify-content-between align-items-center mb-3">
+    <Container fluid className="page-shell">
+      <div className="page-header">
         <div>
-          <h1>Projects</h1>
-          <p className="text-muted">All active and completed projects</p>
+          <p className="page-kicker">Portfolio</p>
+          <h1 className="page-title">Projects</h1>
+          <p className="page-description">All active and completed project spaces.</p>
         </div>
         {hasPermission(PERMISSIONS.PROJECT_CREATE) && !isClient(user) && (
           <Button onClick={() => setShowAddModal(true)}>Add Project</Button>
@@ -227,17 +228,18 @@ function Projects() {
       )}
 
       {/* Search Bar */}
-      <div className="mb-3">
+      <div className="toolbar">
         <Form.Control
           type="text"
           placeholder="Search projects by name or description..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
+          className="toolbar-search"
         />
       </div>
 
       {/* Status Filter Buttons */}
-      <div className="d-flex flex-wrap gap-2 mb-4">
+      <div className="segment-group mb-4">
         <Button
           variant={statusFilter === null ? "primary" : "outline-primary"}
           onClick={() => setStatusFilter(null)}
@@ -273,16 +275,16 @@ function Projects() {
       <Row className="g-4">
         {filteredProjects.map((project) => (
           <Col md={4} key={project.id}>
-            <Card className="h-100">
+            <Card className="work-card h-100">
               <Card.Body>
                 <div className="d-flex justify-content-between align-items-start mb-2">
-                  <Card.Title>{project.name}</Card.Title>
-                  <Badge bg={getStatusVariant(project.status)}>
+                  <h2 className="work-card-title">{project.name}</h2>
+                  <span className={getStatusClass(project.status)}>
                     {getStatusLabel(project.status)}
-                  </Badge>
+                  </span>
                 </div>
                 {project.description && (
-                  <Card.Text className="text-muted">
+                  <Card.Text className="work-card-text">
                     {project.description.substring(0, 100)}
                     {project.description.length > 100 ? "..." : ""}
                   </Card.Text>
@@ -299,7 +301,7 @@ function Projects() {
                 {project.review_status && (
                   <div className="mb-2">
                     <small>
-                      Review: <Badge bg="info">{project.review_status}</Badge>
+                      Review: <span className="status-pill status-info">{project.review_status}</span>
                     </small>
                   </div>
                 )}

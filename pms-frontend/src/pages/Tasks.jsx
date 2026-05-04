@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Container from "react-bootstrap/Container";
 import Table from "react-bootstrap/Table";
-import Badge from "react-bootstrap/Badge";
 import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
 import Form from "react-bootstrap/Form";
@@ -325,23 +324,22 @@ function Tasks() {
     return foundUser ? foundUser.name : "Unknown";
   };
 
-  const getStatusVariant = (status) => {
-    if (status === "DONE") return "success";
-    if (status === "IN_PROGRESS") return "warning";
-    if (status === "BLOCKED") return "danger";
-    if (status === "CANCELLED") return "secondary";
-    return "secondary";
+  const getStatusClass = (status) => {
+    if (status === "DONE") return "status-pill status-success";
+    if (status === "IN_PROGRESS") return "status-pill status-warning";
+    if (status === "BLOCKED") return "status-pill status-danger";
+    return "status-pill status-secondary";
   };
 
   const getStatusLabel = (status) => {
     return status.replace("_", " ");
   };
 
-  const getReviewStatusVariant = (status) => {
-    if (status === "UNDER_REVIEW") return "warning";
-    if (status === "APPROVED") return "success";
-    if (status === "REJECTED") return "danger";
-    return "secondary";
+  const getReviewStatusClass = (status) => {
+    if (status === "UNDER_REVIEW") return "status-pill status-warning";
+    if (status === "APPROVED") return "status-pill status-success";
+    if (status === "REJECTED") return "status-pill status-danger";
+    return "status-pill status-secondary";
   };
 
   const getReviewStatusLabel = (status) => {
@@ -351,11 +349,11 @@ function Tasks() {
     return "None";
   };
 
-  const getApprovalStatusVariant = (status) => {
-    if (status === "PENDING") return "warning";
-    if (status === "APPROVED") return "success";
-    if (status === "REJECTED") return "danger";
-    return "secondary";
+  const getApprovalStatusClass = (status) => {
+    if (status === "PENDING") return "status-pill status-warning";
+    if (status === "APPROVED") return "status-pill status-success";
+    if (status === "REJECTED") return "status-pill status-danger";
+    return "status-pill status-secondary";
   };
 
   const getApprovalStatusLabel = (status) => {
@@ -367,18 +365,19 @@ function Tasks() {
 
   if (loading) {
     return (
-      <Container fluid className="mt-3">
-        <div>Loading...</div>
+      <Container fluid className="page-shell">
+        <div className="loading-state">Loading tasks...</div>
       </Container>
     );
   }
 
   return (
-    <Container fluid className="mt-3">
-      <div className="d-flex justify-content-between align-items-center mb-3">
+    <Container fluid className="page-shell">
+      <div className="page-header">
         <div>
-          <h1>Tasks</h1>
-          <p className="text-muted">
+          <p className="page-kicker">Execution</p>
+          <h1 className="page-title">Tasks</h1>
+          <p className="page-description">
             {!hasPermission(PERMISSIONS.PROJECT_VIEW_ALL)
               ? "Tasks from your projects"
               : "All tasks across projects"}
@@ -412,18 +411,18 @@ function Tasks() {
       )}
 
       {/* Search Bar */}
-      <div className="mb-3">
+      <div className="toolbar">
         <Form.Control
           type="text"
           placeholder="Search tasks by title or description..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="mb-3"
+          className="toolbar-search"
         />
       </div>
 
       {/* Status Filter Buttons */}
-      <div className="mb-3">
+      <div className="segment-group mb-3">
         <Button
           variant={statusFilter === null ? "primary" : "outline-primary"}
           className="me-2"
@@ -453,140 +452,142 @@ function Tasks() {
         </Button>
       </div>
 
-      <Table bordered hover responsive className="mt-3">
-        <thead>
-          <tr>
-            <th>Task</th>
-            <th>Project</th>
-            <th>Assigned To</th>
-            <th>Status</th>
-            <th>Review Status</th>
-            <th>Approval Status</th>
-            <th>Progress</th>
-            <th>Start Date</th>
-            <th>Due Date</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredTasks.length === 0 ? (
+      <div className="table-surface">
+        <Table hover responsive className="modern-table">
+          <thead>
             <tr>
-              <td colSpan="10" className="text-center py-4">
-                <div className="text-muted">
-                  {loading ? "Loading tasks..." : "No tasks found"}
-                </div>
-                {!loading && (
-                  <Button variant="outline-primary" size="sm" className="mt-2" onClick={handleRetry}>
-                    Refresh
-                  </Button>
-                )}
-              </td>
+              <th>Task</th>
+              <th>Project</th>
+              <th>Assigned To</th>
+              <th>Status</th>
+              <th>Review Status</th>
+              <th>Approval Status</th>
+              <th>Progress</th>
+              <th>Start Date</th>
+              <th>Due Date</th>
+              <th>Actions</th>
             </tr>
-          ) : (
-            filteredTasks.map((task) => (
-              <tr key={task.id}>
-                <td>{task.title}</td>
-                <td>{getProjectName(task.project_id)}</td>
-                <td>{getUserName(task.assigned_to)}</td>
-                <td>
-                  <Badge bg={getStatusVariant(task.status)}>
-                    {getStatusLabel(task.status)}
-                  </Badge>
-                </td>
-                <td>
-                  <Badge bg={getReviewStatusVariant(task.review_status)}>
-                    {getReviewStatusLabel(task.review_status)}
-                  </Badge>
-                </td>
-                <td>
-                  <Badge bg={getApprovalStatusVariant(task.approval_status)}>
-                    {getApprovalStatusLabel(task.approval_status)}
-                  </Badge>
-                </td>
-                <td>{(isNaN(task.progress) ? 0 : parseFloat(task.progress)).toFixed(0)}%</td>
-                <td>
-                  {task.start_date
-                    ? new Date(task.start_date).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                      })
-                    : "N/A"}
-                </td>
-                <td>
-                  {task.due_date
-                    ? new Date(task.due_date).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                      })
-                    : "N/A"}
-                </td>
-                <td>
-                  <Button
-                    variant="outline-primary"
-                    size="sm"
-                    className="me-2"
-                    onClick={() => navigate(`/tasks/${task.id}`)}
-                  >
-                    View
-                  </Button>
-                  {(hasPermission(PERMISSIONS.TASK_EDIT) ||
-                    task.assigned_to === user?.id) && (
-                    <Button
-                      variant="outline-secondary"
-                      size="sm"
-                      className="me-2"
-                      onClick={() => openEditTaskModal(task)}
-                    >
-                      Edit
-                    </Button>
-                  )}
-                  {task.assigned_to === user?.id && task.status === "DONE" && task.approval_status === "NONE" && (
-                    <Button
-                      variant="outline-info"
-                      size="sm"
-                      className="me-2"
-                      onClick={() => handleRequestApproval(task.id)}
-                    >
-                      Request Approval
-                    </Button>
-                  )}
-                  {hasPermission(PERMISSIONS.TASK_APPROVE) && task.approval_status === "PENDING" && (
-                    <>
-                      <Button
-                        variant="outline-success"
-                        size="sm"
-                        className="me-2"
-                        onClick={() => handleApproveTask(task.id)}
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        variant="outline-danger"
-                        size="sm"
-                        className="me-2"
-                        onClick={() => handleRejectTask(task.id)}
-                      >
-                        Reject
-                      </Button>
-                    </>
-                  )}
-                  {hasPermission(PERMISSIONS.TASK_DELETE) && (
-                    <Button
-                      variant="outline-danger"
-                      size="sm"
-                      onClick={() => handleDeleteTask(task.id)}
-                    >
-                      Delete
+          </thead>
+          <tbody>
+            {filteredTasks.length === 0 ? (
+              <tr>
+                <td colSpan="10" className="text-center py-4">
+                  <div className="text-muted">
+                    {loading ? "Loading tasks..." : "No tasks found"}
+                  </div>
+                  {!loading && (
+                    <Button variant="outline-primary" size="sm" className="mt-2" onClick={handleRetry}>
+                      Refresh
                     </Button>
                   )}
                 </td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </Table>
+            ) : (
+              filteredTasks.map((task) => (
+                <tr key={task.id}>
+                  <td className="fw-semibold">{task.title}</td>
+                  <td>{getProjectName(task.project_id)}</td>
+                  <td>{getUserName(task.assigned_to)}</td>
+                  <td>
+                    <span className={getStatusClass(task.status)}>
+                      {getStatusLabel(task.status)}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={getReviewStatusClass(task.review_status)}>
+                      {getReviewStatusLabel(task.review_status)}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={getApprovalStatusClass(task.approval_status)}>
+                      {getApprovalStatusLabel(task.approval_status)}
+                    </span>
+                  </td>
+                  <td>{(isNaN(task.progress) ? 0 : parseFloat(task.progress)).toFixed(0)}%</td>
+                  <td>
+                    {task.start_date
+                      ? new Date(task.start_date).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })
+                      : "N/A"}
+                  </td>
+                  <td>
+                    {task.due_date
+                      ? new Date(task.due_date).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })
+                      : "N/A"}
+                  </td>
+                  <td>
+                    <Button
+                      variant="outline-primary"
+                      size="sm"
+                      className="me-2"
+                      onClick={() => navigate(`/tasks/${task.id}`)}
+                    >
+                      View
+                    </Button>
+                    {(hasPermission(PERMISSIONS.TASK_EDIT) ||
+                      task.assigned_to === user?.id) && (
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        className="me-2"
+                        onClick={() => openEditTaskModal(task)}
+                      >
+                        Edit
+                      </Button>
+                    )}
+                    {task.assigned_to === user?.id && task.status === "DONE" && task.approval_status === "NONE" && (
+                      <Button
+                        variant="outline-info"
+                        size="sm"
+                        className="me-2"
+                        onClick={() => handleRequestApproval(task.id)}
+                      >
+                        Request Approval
+                      </Button>
+                    )}
+                    {hasPermission(PERMISSIONS.TASK_APPROVE) && task.approval_status === "PENDING" && (
+                      <>
+                        <Button
+                          variant="outline-success"
+                          size="sm"
+                          className="me-2"
+                          onClick={() => handleApproveTask(task.id)}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
+                          className="me-2"
+                          onClick={() => handleRejectTask(task.id)}
+                        >
+                          Reject
+                        </Button>
+                      </>
+                    )}
+                    {hasPermission(PERMISSIONS.TASK_DELETE) && (
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={() => handleDeleteTask(task.id)}
+                      >
+                        Delete
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </Table>
+      </div>
 
       {/* Add Task Modal */}
       <Modal show={showAddModal} onHide={() => setShowAddModal(false)}>

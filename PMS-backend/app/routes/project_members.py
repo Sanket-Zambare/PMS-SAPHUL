@@ -39,6 +39,31 @@ def is_admin(db: Session, user_id: int) -> bool:
         return user_role is not None
     return False
 
+def is_client(db: Session, user_id: int) -> bool:
+    """Check if user has CLIENT role."""
+    from app.models.role import Role
+    from app.models.user_role import UserRole as UserRoleModel
+
+    client_role = db.query(Role).filter(Role.name == "CLIENT").first()
+    if client_role:
+        user_role = db.query(UserRoleModel).filter(
+            UserRoleModel.user_id == user_id,
+            UserRoleModel.role_id == client_role.id
+        ).first()
+        return user_role is not None
+    return False
+
+def can_access_project(db: Session, user_id: int, project_id: int) -> bool:
+    """Check if user can access a project (admin or project member)."""
+    if is_admin(db, user_id):
+        return True
+    member = db.query(ProjectMember).filter(
+        ProjectMember.project_id == project_id,
+        ProjectMember.user_id == user_id,
+        ProjectMember.is_deleted == False
+    ).first()
+    return member is not None
+
 @router.post("/", response_model=ProjectMemberResponse, status_code=status.HTTP_201_CREATED)
 def add_project_member(
     member_data: ProjectMemberCreate,
@@ -127,9 +152,16 @@ def add_project_member(
 def get_project_members(
     project_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission(PROJECT_VIEW_ASSIGNED))
+    current_user: User = Depends(get_current_user)
 ):
     """Get all members of a project. Requires PROJECT_VIEW_ASSIGNED permission."""
+    # Permission gate (with CLIENT fallback for read-only access)
+    if not has_permission(db, current_user.id, PROJECT_VIEW_ASSIGNED) and not is_client(db, current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Permission required: {PROJECT_VIEW_ASSIGNED}"
+        )
+
     # Verify project exists
     project = db.query(Project).filter(
         Project.id == project_id,
@@ -139,6 +171,13 @@ def get_project_members(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found"
+        )
+
+    # Must be a member (or admin) to see project members
+    if not can_access_project(db, current_user.id, project_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this project"
         )
     
     members = db.query(ProjectMember).filter(

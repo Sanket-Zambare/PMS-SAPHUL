@@ -174,7 +174,7 @@ def get_tasks(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission(TASK_VIEW))
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get tasks.
@@ -185,6 +185,13 @@ def get_tasks(
     - Can filter by assigned_to to see only own tasks
     - Can filter by project_ids (comma-separated) for multiple projects
     """
+    # Permission gate (with CLIENT fallback for read-only access)
+    if not has_permission(db, current_user.id, TASK_VIEW) and not is_client(db, current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Permission required: {TASK_VIEW}"
+        )
+
     # CLIENT users are ALWAYS restricted to tasks from assigned projects
     if is_client(db, current_user.id):
         user_project_ids = db.query(ProjectMember.project_id).filter(
@@ -278,9 +285,16 @@ def get_tasks(
 def get_task(
     task_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission(TASK_VIEW))
+    current_user: User = Depends(get_current_user)
 ):
     """Get a specific task by ID. Only accessible to project members or admin."""
+    # Permission gate (with CLIENT fallback for read-only access)
+    if not has_permission(db, current_user.id, TASK_VIEW) and not is_client(db, current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Permission required: {TASK_VIEW}"
+        )
+
     task = db.query(Task).filter(
         Task.id == task_id,
         Task.is_deleted == False

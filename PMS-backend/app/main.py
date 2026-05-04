@@ -29,9 +29,28 @@ import os
 app = FastAPI(title="SAPHUL PMS Backend")
 
 # CORS middleware - MUST be added before routes
+# =========================
+# ==== PRODUCTION (HOSTINGER) ====
+# Uncomment this for production deployment
+# Frontend: https://app.yourdomain.com
+# =========================
+# PRODUCTION CORS origins (uncomment for production):
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["https://app.yourdomain.com"],  # PRODUCTION - replace with your frontend domain
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+#     expose_headers=["*"],
+# )
+
+# =========================
+# ==== LOCAL (REMOVE FOR PROD) ====
+# REMOVE OR COMMENT THIS FOR PRODUCTION
+# =========================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:5173"],  # Vite default port
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:5173"],  # Vite default port - LOCAL ONLY
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -39,7 +58,19 @@ app.add_middleware(
 )
 
 # Mount static files for uploads
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+# =========================
+# ==== PRODUCTION (HOSTINGER) ====
+# Uncomment this for production deployment
+# Use absolute path: /home/username/uploads or /var/www/uploads
+# =========================
+# PRODUCTION upload directory (uncomment and set your production path):
+# app.mount("/uploads", StaticFiles(directory="/home/username/uploads"), name="uploads")
+
+# =========================
+# ==== LOCAL (REMOVE FOR PROD) ====
+# REMOVE OR COMMENT THIS FOR PRODUCTION
+# =========================
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")  # LOCAL ONLY - relative path
 
 # Include routers
 app.include_router(auth)
