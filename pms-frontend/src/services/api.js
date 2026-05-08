@@ -20,7 +20,7 @@ Backend API: https://api.yourdomain.com
 REMOVE OR COMMENT THIS FOR PRODUCTION
 =========================
 */
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 // Create axios instance
 const api = axios.create({
