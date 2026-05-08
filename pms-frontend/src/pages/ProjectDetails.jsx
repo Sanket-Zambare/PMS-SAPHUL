@@ -537,7 +537,7 @@ function ProjectDetails() {
                                 REMOVE OR COMMENT THIS FOR PRODUCTION
                                 =========================
                                 */
-                                const fileDownloadUrl = `http://localhost:8000${file.file_url}`;
+                                const fileDownloadUrl = `${import.meta.env.VITE_API_URL}${file.file_url}`;
                                 
                                 window.open(fileDownloadUrl, '_blank');
                               }}
