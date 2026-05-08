@@ -50,12 +50,12 @@ app = FastAPI(title="SAPHUL PMS Backend")
 # =========================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:5173"],  # Vite default port - LOCAL ONLY
+    allow_origins=["https://sane-sigma.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
 )
+
 
 # Mount static files for uploads
 # =========================
