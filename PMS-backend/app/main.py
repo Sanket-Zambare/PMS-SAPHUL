@@ -70,6 +70,7 @@ app.add_middleware(
 # ==== LOCAL (REMOVE FOR PROD) ====
 # REMOVE OR COMMENT THIS FOR PRODUCTION
 # =========================
+os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")  # LOCAL ONLY - relative path
 
 # Include routers
