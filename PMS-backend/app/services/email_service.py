@@ -1,55 +1,49 @@
-import smtplib
+import requests
 import logging
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import os
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-class EmailService:
-    def __init__(self):
-        self.smtp_host = os.getenv('SMTP_HOST')
-        self.smtp_port = int(os.getenv('SMTP_PORT', 587))
-        self.smtp_user = os.getenv('SMTP_USER')
-        self.smtp_pass = os.getenv('SMTP_PASS')
-        self.smtp_from = os.getenv('SMTP_FROM')
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://sane-sigma.vercel.app")
+FROM_EMAIL = "Saphul PMS <onboarding@resend.dev>"
 
-        # Validate required SMTP settings
-        if not all([self.smtp_host, self.smtp_user, self.smtp_pass, self.smtp_from]):
-            logger.warning("SMTP configuration incomplete. Email sending will be disabled.")
 
-    def _send_email(self, to_email: str, subject: str, html_content: str) -> bool:
-        """Send email using SMTP. Returns True if successful, False otherwise."""
-        if not all([self.smtp_host, self.smtp_user, self.smtp_pass, self.smtp_from]):
-            logger.error("SMTP configuration incomplete. Cannot send email.")
-            return False
+def _send_email(to_email: str, subject: str, html_content: str) -> bool:
+    """Send email using Resend HTTP API. Returns True if successful."""
+    if not RESEND_API_KEY:
+        logger.error("RESEND_API_KEY not set. Cannot send email.")
+        return False
 
-        try:
-            # Create message
-            msg = MIMEMultipart('alternative')
-            msg['Subject'] = subject
-            msg['From'] = self.smtp_from
-            msg['To'] = to_email
+    try:
+        response = requests.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "from": FROM_EMAIL,
+                "to": [to_email],
+                "subject": subject,
+                "html": html_content,
+            },
+            timeout=10,  # fail fast — no hanging
+        )
 
-            # Add HTML content
-            html_part = MIMEText(html_content, 'html')
-            msg.attach(html_part)
-
-            # Send email
-            server = smtplib.SMTP(self.smtp_host, self.smtp_port)
-            server.starttls()
-            server.login(self.smtp_user, self.smtp_pass)
-            server.sendmail(self.smtp_from, to_email, msg.as_string())
-            server.quit()
-
+        if response.status_code == 200 or response.status_code == 201:
             logger.info(f"Email sent successfully to {to_email}")
             return True
-
-        except Exception as e:
-            logger.error(f"Failed to send email to {to_email}: {str(e)}")
+        else:
+            logger.error(f"Resend API error {response.status_code}: {response.text}")
             return False
 
+    except Exception as e:
+        logger.error(f"Failed to send email to {to_email}: {str(e)}")
+        return False
+
+
+class EmailService:
     def send_signup_email(self, user_email: str, user_name: str) -> None:
         """Send signup confirmation email."""
         subject = "Welcome to Saphul PMS"
@@ -64,28 +58,13 @@ class EmailService:
         </body>
         </html>
         """
-
-        # Best-effort: log failure but don't raise exception
-        if not self._send_email(user_email, subject, html_content):
+        if not _send_email(user_email, subject, html_content):
             logger.warning(f"Signup confirmation email failed for {user_email}")
 
     def send_password_reset_email(self, user_email: str, reset_token: str, user_name: str) -> None:
         """Send password reset email with secure token."""
         subject = "Password Reset - Saphul PMS"
-        # =========================
-        # ==== PRODUCTION (HOSTINGER) ====
-        # Uncomment this for production deployment
-        # Frontend: https://app.yourdomain.com
-        # =========================
-        # PRODUCTION reset URL (uncomment and set your production frontend URL):
-        # frontend_url = os.getenv("FRONTEND_URL", "https://app.yourdomain.com")
-        # reset_url = f"{frontend_url}/reset-password?token={reset_token}"
-        
-        # =========================
-        # ==== LOCAL (REMOVE FOR PROD) ====
-        # REMOVE OR COMMENT THIS FOR PRODUCTION
-        # =========================
-        reset_url = f"http://localhost:3000/reset-password?token={reset_token}"  # LOCAL ONLY - development frontend URL
+        reset_url = f"{FRONTEND_URL}/reset-password?token={reset_token}"
 
         html_content = f"""
         <html>
@@ -102,28 +81,13 @@ class EmailService:
         </body>
         </html>
         """
-
-        # Best-effort: log failure but don't raise exception
-        if not self._send_email(user_email, subject, html_content):
+        if not _send_email(user_email, subject, html_content):
             logger.warning(f"Password reset email failed for {user_email}")
 
     def send_invite_email(self, email: str, token: str, name: str) -> None:
         """Send client invitation email."""
         subject = "Invitation to join Saphul PMS"
-        # =========================
-        # ==== PRODUCTION (HOSTINGER) ====
-        # Uncomment this for production deployment
-        # Frontend: https://app.yourdomain.com
-        # =========================
-        # PRODUCTION invite URL (uncomment and set your production frontend URL):
-        # frontend_url = os.getenv("FRONTEND_URL", "https://app.yourdomain.com")
-        # invite_url = f"{frontend_url}/accept-invite?token={token}"
-        
-        # =========================
-        # ==== LOCAL (REMOVE FOR PROD) ====
-        # REMOVE OR COMMENT THIS FOR PRODUCTION
-        # =========================
-        invite_url = f"http://localhost:3000/accept-invite?token={token}"  # LOCAL ONLY - development frontend URL
+        invite_url = f"{FRONTEND_URL}/accept-invite?token={token}"
 
         html_content = f"""
         <html>
@@ -139,10 +103,9 @@ class EmailService:
         </body>
         </html>
         """
-
-        # Best-effort: log failure but don't raise exception
-        if not self._send_email(email, subject, html_content):
+        if not _send_email(email, subject, html_content):
             logger.warning(f"Invitation email failed for {email}")
+
 
 # Global email service instance
 email_service = EmailService()
