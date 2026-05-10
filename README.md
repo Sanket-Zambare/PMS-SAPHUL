@@ -151,7 +151,7 @@ Once the backend is running, you can access the interactive API documentation at
 
 ## License
 
-This project is proprietary software for SAPHUL.
+This project is proprietary software for SAPHUL Developed By Sanket Zambare.
 
 
 
