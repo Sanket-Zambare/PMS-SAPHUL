@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Container, Card, Form, Button, Alert } from "react-bootstrap";
+import { Form, Button, Alert } from "react-bootstrap";
 import { authAPI } from "../services/api";
 
 function ForgotPassword() {
@@ -43,58 +43,93 @@ function ForgotPassword() {
   };
 
   return (
-    <Container
-      className="d-flex align-items-center justify-content-center"
-      style={{ minHeight: "100vh" }}
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#F5F4F0",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "2rem 1rem",
+        fontFamily: "'Inter', system-ui, sans-serif",
+      }}
     >
-      <Card style={{ width: "400px" }}>
-        <Card.Body>
-          <Card.Title className="text-center mb-4">
-            <h2>SAPHUL PMS</h2>
-            <p className="text-muted">Forgot Password</p>
-          </Card.Title>
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "420px",
+          background: "#fff",
+          borderRadius: "20px",
+          padding: "2.5rem 2rem",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
+          border: "1px solid #e8e8e8",
+        }}
+      >
+        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+          <h2
+            style={{
+              fontWeight: 800,
+              letterSpacing: "0.15em",
+              color: "#1a1a1a",
+              marginBottom: "0.2rem",
+            }}
+          >
+            S.A.N.E
+          </h2>
+          <p
+            style={{
+              fontSize: "0.72rem",
+              color: "#888",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              margin: 0,
+            }}
+          >
+            Stop All Needless Effort
+          </p>
+        </div>
 
-          {error && <Alert variant="danger">{error}</Alert>}
-          {success && <Alert variant="success">{success}</Alert>}
+        <p className="text-muted text-center mb-4">Forgot Password</p>
 
-          <Form onSubmit={handleSubmit}>
-            <Form.Group className="mb-3">
-              <Form.Label>Email</Form.Label>
-              <Form.Control
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  setError("");
-                }}
-                required
-              />
-              <Form.Text className="text-muted">
-                We'll send a password reset link to this email
-              </Form.Text>
-            </Form.Group>
+        {error && <Alert variant="danger">{error}</Alert>}
+        {success && <Alert variant="success">{success}</Alert>}
 
-            <Button
-              variant="primary"
-              type="submit"
-              className="w-100"
-              disabled={loading}
-            >
-              {loading ? "Sending..." : "Send Reset Link"}
-            </Button>
-          </Form>
+        <Form onSubmit={handleSubmit}>
+          <Form.Group className="mb-3">
+            <Form.Label>Email</Form.Label>
+            <Form.Control
+              type="email"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setError("");
+              }}
+              required
+            />
+            <Form.Text className="text-muted">
+              We&apos;ll send a password reset link to this email
+            </Form.Text>
+          </Form.Group>
 
-          <div className="text-center mt-3">
-            <Link to="/login" className="text-decoration-none">
-              Back to Login
-            </Link>
-          </div>
-        </Card.Body>
-      </Card>
-    </Container>
+          <Button
+            variant="primary"
+            type="submit"
+            className="w-100"
+            disabled={loading}
+          >
+            {loading ? "Sending..." : "Send Reset Link"}
+          </Button>
+        </Form>
+
+        <div className="text-center mt-3">
+          <Link to="/login" className="text-decoration-none">
+            Back to Login
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }
 
 export default ForgotPassword;
-

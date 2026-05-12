@@ -11,7 +11,7 @@ function Sidebars() {
 
   const handleLogout = () => {
     logout();
-    navigate("/login");
+    navigate("/welcome");
   };
 
   const userInitial = user?.name?.trim()?.charAt(0)?.toUpperCase() || "U";
@@ -22,7 +22,7 @@ function Sidebars() {
       <div className="brand-lockup">
         <div className="brand-mark">S</div>
         <div>
-          <p className="brand-title">SAPHUL PMS</p>
+          <p className="brand-title">SANE</p>
           <p className="brand-subtitle">Project workspace</p>
         </div>
       </div>

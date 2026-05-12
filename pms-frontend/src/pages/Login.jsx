@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Container, Card, Form, Button, Alert } from "react-bootstrap";
+import { Form, Button, Alert } from "react-bootstrap";
 import { authAPI } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
@@ -100,81 +100,122 @@ function Login() {
   };
 
   return (
-    <Container
-      className="d-flex align-items-center justify-content-center"
-      style={{ minHeight: "100vh" }}
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#F5F4F0",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "2rem 1rem",
+        fontFamily: "'Inter', system-ui, sans-serif",
+      }}
     >
-      <Card style={{ width: "400px" }}>
-        <Card.Body>
-          <Card.Title className="text-center mb-4">
-            <h2>SAPHUL PMS</h2>
-            <p className="text-muted">Sign in to your account</p>
-          </Card.Title>
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "420px",
+          background: "#fff",
+          borderRadius: "20px",
+          padding: "2.5rem 2rem",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
+          border: "1px solid #e8e8e8",
+        }}
+      >
+        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+          <h2
+            style={{
+              fontWeight: 800,
+              letterSpacing: "0.15em",
+              color: "#1a1a1a",
+              marginBottom: "0.2rem",
+            }}
+          >
+            S.A.N.E
+          </h2>
+          <p
+            style={{
+              fontSize: "0.72rem",
+              color: "#888",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              margin: 0,
+            }}
+          >
+            Stop All Needless Effort
+          </p>
+        </div>
 
-          {error && <Alert variant="danger">{error}</Alert>}
+        <p className="text-muted text-center mb-4">Sign in to your account</p>
 
-          <Form onSubmit={handleSubmit}>
-            <Form.Group className="mb-3">
-              <Form.Label>Email</Form.Label>
+        {error && <Alert variant="danger">{error}</Alert>}
+
+        <Form onSubmit={handleSubmit}>
+          <Form.Group className="mb-3">
+            <Form.Label>Email</Form.Label>
+            <Form.Control
+              type="email"
+              placeholder="Enter email"
+              value={formData.email}
+              onChange={(e) => {
+                setFormData({ ...formData, email: e.target.value });
+                setError(""); // Clear error when user types
+              }}
+              required
+            />
+          </Form.Group>
+
+          <Form.Group className="mb-3">
+            <Form.Label>Password</Form.Label>
+            <div className="d-flex">
               <Form.Control
-                type="email"
-                placeholder="Enter email"
-                value={formData.email}
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter password"
+                value={formData.password}
                 onChange={(e) => {
-                  setFormData({ ...formData, email: e.target.value });
-                  setError(""); // Clear error when user types
+                  setFormData({ ...formData, password: e.target.value });
+                  setError("");
                 }}
                 required
               />
-            </Form.Group>
+              <Button
+                variant="outline-secondary"
+                onClick={() => setShowPassword(!showPassword)}
+                className="ms-2"
+              >
+                {showPassword ? "Hide" : "Show"}
+              </Button>
+            </div>
+            <div className="text-end mt-2">
+              <Link to="/forgot-password" className="text-decoration-none">
+                Forgot password?
+              </Link>
+            </div>
+          </Form.Group>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Password</Form.Label>
-              <div className="d-flex">
-                <Form.Control
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter password"
-                  value={formData.password}
-                  onChange={(e) => {
-                    setFormData({ ...formData, password: e.target.value });
-                    setError(""); // Clear error when user types
-                  }}
-                  required
-                />
-                <Button
-                  variant="outline-secondary"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="ms-2"
-                >
-                  {showPassword ? "Hide" : "Show"}
-                </Button>
-              </div>
-              <div className="text-end mt-2">
-                <Link to="/forgot-password" className="text-decoration-none">
-                  Forgot password?
-                </Link>
-              </div>
-            </Form.Group>
+          <Button
+            variant="primary"
+            type="submit"
+            className="w-100"
+            disabled={loading || checkingEmail}
+          >
+            {loading ? "Signing in..." : "Sign In"}
+          </Button>
+        </Form>
 
-            <Button
-              variant="primary"
-              type="submit"
-              className="w-100"
-              disabled={loading || checkingEmail}
-            >
-              {loading ? "Signing in..." : "Sign In"}
-            </Button>
-          </Form>
-
-          <div className="text-center mt-3">
-            <p className="text-muted">
-              Don't have an account?{" "}
-              <Link to="/signup">Sign up</Link>
-            </p>
-          </div>
-        </Card.Body>
-      </Card>
-    </Container>
+        <div className="text-center mt-3">
+          <p className="text-muted mb-2">
+            Don&apos;t have an account?{" "}
+            <Link to="/signup">Sign up</Link>
+          </p>
+          <p className="text-muted small mb-0">
+            <Link to="/welcome" className="text-decoration-none">
+              Back to welcome
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 

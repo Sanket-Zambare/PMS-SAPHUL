@@ -14,7 +14,7 @@ const ProtectedRoute = ({ children, requiredPermission = null, requiredPermissio
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/welcome" replace />;
   }
 
   // Check permissions if specified

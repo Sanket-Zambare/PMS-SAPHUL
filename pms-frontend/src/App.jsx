@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Sidebars from "./components/Sidebars";
 import Login from "./pages/Login";
+import LandingPage from "./pages/LandingPage";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -36,6 +37,10 @@ function AppRoutes() {
   return (
     <Router>
       <Routes>
+        <Route
+          path="/welcome"
+          element={isAuthenticated ? <Navigate to="/" replace /> : <LandingPage />}
+        />
         <Route
           path="/login"
           element={isAuthenticated ? <Navigate to="/" replace /> : <Login />}
