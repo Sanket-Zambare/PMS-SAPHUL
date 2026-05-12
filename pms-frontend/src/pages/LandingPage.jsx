@@ -1,4 +1,5 @@
 import { useNavigate, Link } from "react-router-dom";
+import Navbar from "../components/Navbar";
 
 /** Desktop-sized CSS illustration (scattered cards → checklist) */
 function SANEIllustrationDesktop() {
@@ -148,14 +149,6 @@ function SANEIllustrationDesktop() {
 function LandingPage() {
   const navigate = useNavigate();
 
-  const navItems = [
-    { label: "Home", href: "#landing-top" },
-    { label: "How It Works", href: "#landing-approach" },
-    { label: "About SANE", href: "#landing-approach" },
-    { label: "Resources", href: "#landing-approach" },
-    { label: "Pricing", href: "#landing-approach" },
-  ];
-
   const pillars = [
     { icon: "👁️", line1: "See what", line2: "matters" },
     { icon: "🔕", line1: "Ignore", line2: "the noise" },
@@ -164,114 +157,7 @@ function LandingPage() {
 
   return (
     <div id="landing-top" className="landing-v2-root">
-      {/* ----- Fixed navbar ----- */}
-      <nav
-        className="landing-nav"
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 100,
-          background: "#fff",
-          borderBottom: "1px solid #e8e8e8",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "1rem",
-        }}
-      >
-        <Link
-          to="/welcome"
-          style={{
-            textDecoration: "none",
-            color: "inherit",
-            flexShrink: 0,
-          }}
-        >
-          <div
-            style={{
-              fontWeight: 800,
-              fontSize: "1.4rem",
-              letterSpacing: "0.15em",
-              color: "#1a1a1a",
-              lineHeight: 1,
-            }}
-          >
-            S.A.N.E
-          </div>
-          <div
-            style={{
-              fontSize: "0.58rem",
-              letterSpacing: "0.12em",
-              color: "#888",
-              textTransform: "uppercase",
-            }}
-          >
-            Stop All Needless Effort
-          </div>
-        </Link>
-
-        <div
-          className="nav-links-desktop"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "2rem",
-            flex: 1,
-            justifyContent: "center",
-            flexWrap: "wrap",
-          }}
-        >
-          {navItems.map((item, i) => (
-            <a
-              key={item.label}
-              href={item.href}
-              style={{
-                fontSize: "0.9rem",
-                color: i === 0 ? "#E8640A" : "#555",
-                textDecoration: "none",
-                fontWeight: i === 0 ? 600 : 400,
-                borderBottom: i === 0 ? "2px solid #E8640A" : "none",
-                paddingBottom: "2px",
-              }}
-            >
-              {item.label}
-            </a>
-          ))}
-          <button
-            type="button"
-            onClick={() => navigate("/login")}
-            style={{
-              fontSize: "0.9rem",
-              color: "#555",
-              textDecoration: "none",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: 0,
-              font: "inherit",
-            }}
-          >
-            Log in
-          </button>
-        </div>
-
-        <button
-          type="button"
-          className="btn btn-primary landing-nav-cta"
-          onClick={() => navigate("/signup")}
-          style={{
-            borderRadius: "8px",
-            fontWeight: 600,
-            fontSize: "0.9rem",
-            padding: "0.6rem 1.25rem",
-            flexShrink: 0,
-          }}
-        >
-          Start with clarity →
-        </button>
-      </nav>
+      <Navbar />
 
       {/* ----- Hero ----- */}
       <div

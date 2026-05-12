@@ -4,6 +4,10 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Sidebars from "./components/Sidebars";
 import Login from "./pages/Login";
 import LandingPage from "./pages/LandingPage";
+import HowItWorks from "./pages/HowItWorks";
+import AboutSane from "./pages/AboutSane";
+import Resources from "./pages/Resources";
+import Pricing from "./pages/Pricing";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -40,6 +44,22 @@ function AppRoutes() {
         <Route
           path="/welcome"
           element={isAuthenticated ? <Navigate to="/" replace /> : <LandingPage />}
+        />
+        <Route
+          path="/how-it-works"
+          element={isAuthenticated ? <Navigate to="/" replace /> : <HowItWorks />}
+        />
+        <Route
+          path="/about"
+          element={isAuthenticated ? <Navigate to="/" replace /> : <AboutSane />}
+        />
+        <Route
+          path="/resources"
+          element={isAuthenticated ? <Navigate to="/" replace /> : <Resources />}
+        />
+        <Route
+          path="/pricing"
+          element={isAuthenticated ? <Navigate to="/" replace /> : <Pricing />}
         />
         <Route
           path="/login"

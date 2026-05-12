@@ -100,28 +100,8 @@ function Login() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#F5F4F0",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "2rem 1rem",
-        fontFamily: "'Inter', system-ui, sans-serif",
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: "420px",
-          background: "#fff",
-          borderRadius: "20px",
-          padding: "2.5rem 2rem",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
-          border: "1px solid #e8e8e8",
-        }}
-      >
+    <div className="auth-page-wrapper">
+      <div className="auth-card-shell">
         <div style={{ textAlign: "center", marginBottom: "2rem" }}>
           <h2
             style={{

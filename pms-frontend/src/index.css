@@ -28,6 +28,34 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
 }
 
+/* Login / Signup — gradient + dot pattern + card chrome */
+.auth-page-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  font-family: "Inter", system-ui, sans-serif;
+  box-sizing: border-box;
+  background-color: #f5f4f0;
+  background-image:
+    radial-gradient(rgba(26, 26, 26, 0.055) 1px, transparent 1px),
+    linear-gradient(135deg, #f5f4f0 0%, #fef3ea 50%, #f5f4f0 100%);
+  background-size: 18px 18px, 100% 100%;
+}
+
+.auth-card-shell {
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border-radius: 20px;
+  padding: 2.5rem 2rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e8e8e8;
+  border-top: 3px solid #e8640a;
+  box-sizing: border-box;
+}
+
 /* ----- Landing v2 (/welcome): navbar, hero, approach + mobile ----- */
 .landing-v2-root {
   font-family: Inter, system-ui, sans-serif;
