@@ -127,7 +127,6 @@ Base.metadata.create_all(bind=engine)
 def root():
     return {"message": "SANE PMS Backend is running"}
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health_check():
-    """Health check endpoint."""
-    return {"status": "ok", "message": "Backend is healthy"}
+    return {"status": "ok"}
