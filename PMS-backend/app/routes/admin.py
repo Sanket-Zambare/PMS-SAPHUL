@@ -158,6 +158,60 @@ def demote_to_member(
 
     return {"message": "User demoted to MEMBER"}
 
+@admin_router.post("/users/{user_id}/make-admin", status_code=status.HTTP_200_OK)
+def make_admin(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(USER_MANAGE_ROLES))
+):
+    """Promote any user to ADMIN."""
+    if current_user.id == user_id:
+        raise HTTPException(status_code=400, detail="You cannot change your own role")
+
+    user = db.query(User).filter(User.id == user_id, User.is_deleted == False).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    admin_role = db.query(Role).filter(Role.name == "ADMIN").first()
+    if not admin_role:
+        raise HTTPException(status_code=500, detail="ADMIN role not found")
+
+    already = db.query(UserRole).filter(UserRole.user_id == user_id, UserRole.role_id == admin_role.id).first()
+    if already:
+        raise HTTPException(status_code=400, detail="User is already an ADMIN")
+
+    # Remove all existing roles, assign ADMIN
+    db.query(UserRole).filter(UserRole.user_id == user_id).delete()
+    db.add(UserRole(user_id=user_id, role_id=admin_role.id))
+    db.commit()
+
+    return {"message": "User promoted to ADMIN"}
+
+@admin_router.post("/users/{user_id}/remove-admin", status_code=status.HTTP_200_OK)
+def remove_admin(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(USER_MANAGE_ROLES))
+):
+    """Demote an ADMIN back to MEMBER."""
+    if current_user.id == user_id:
+        raise HTTPException(status_code=400, detail="You cannot change your own role")
+
+    user = db.query(User).filter(User.id == user_id, User.is_deleted == False).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    admin_role = db.query(Role).filter(Role.name == "ADMIN").first()
+    member_role = db.query(Role).filter(Role.name == "MEMBER").first()
+    if not admin_role or not member_role:
+        raise HTTPException(status_code=500, detail="Roles not found")
+
+    db.query(UserRole).filter(UserRole.user_id == user_id).delete()
+    db.add(UserRole(user_id=user_id, role_id=member_role.id))
+    db.commit()
+
+    return {"message": "User demoted to MEMBER"}
+
 @admin_router.post("/projects", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
 def create_project_admin(
     project_data: ProjectCreate,

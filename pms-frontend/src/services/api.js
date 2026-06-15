@@ -103,6 +103,8 @@ export const adminUsersAPI = {
     api.get(`/admin/users?skip=${skip}&limit=${limit}`),
   promoteToPM: (userId) => api.post(`/admin/users/${userId}/promote-to-pm`),
   demoteToMember: (userId) => api.post(`/admin/users/${userId}/demote-to-member`),
+  makeAdmin: (userId) => api.post(`/admin/users/${userId}/make-admin`),
+  removeAdmin: (userId) => api.post(`/admin/users/${userId}/remove-admin`),
 };
 
 // Admin Projects API

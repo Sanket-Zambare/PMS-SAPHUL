@@ -88,14 +88,25 @@ function Users() {
     }
   };
 
+  // Derive primary role string from roles array
+  const getPrimaryRole = (u) => {
+    const roles = u.roles || [];
+    if (roles.includes("ADMIN")) return "ADMIN";
+    if (roles.includes("PROJECT_MANAGER")) return "PROJECT_MANAGER";
+    if (roles.includes("CLIENT")) return "CLIENT";
+    return "MEMBER";
+  };
+
+  const updateUserRoles = (userId, newRole) => {
+    setUsers(users.map((u) =>
+      u.id === userId ? { ...u, roles: [newRole] } : u
+    ));
+  };
+
   const handlePromoteToPM = async (userId) => {
     try {
       await adminUsersAPI.promoteToPM(userId);
-      setUsers(
-        users.map((u) =>
-          u.id === userId ? { ...u, role: "PROJECT_MANAGER" } : u
-        )
-      );
+      updateUserRoles(userId, "PROJECT_MANAGER");
       setError("");
     } catch (error) {
       setError(error.response?.data?.detail || "Failed to promote user");
@@ -105,14 +116,32 @@ function Users() {
   const handleDemoteToMember = async (userId) => {
     try {
       await adminUsersAPI.demoteToMember(userId);
-      setUsers(
-        users.map((u) =>
-          u.id === userId ? { ...u, role: "MEMBER" } : u
-        )
-      );
+      updateUserRoles(userId, "MEMBER");
       setError("");
     } catch (error) {
       setError(error.response?.data?.detail || "Failed to demote user");
+    }
+  };
+
+  const handleMakeAdmin = async (userId) => {
+    if (!window.confirm("Make this user an Admin? They will have full access.")) return;
+    try {
+      await adminUsersAPI.makeAdmin(userId);
+      updateUserRoles(userId, "ADMIN");
+      setError("");
+    } catch (error) {
+      setError(error.response?.data?.detail || "Failed to make admin");
+    }
+  };
+
+  const handleRemoveAdmin = async (userId) => {
+    if (!window.confirm("Remove admin access? This user will become a Member.")) return;
+    try {
+      await adminUsersAPI.removeAdmin(userId);
+      updateUserRoles(userId, "MEMBER");
+      setError("");
+    } catch (error) {
+      setError(error.response?.data?.detail || "Failed to remove admin");
     }
   };
 
@@ -221,11 +250,9 @@ function Users() {
             <tr key={u.id}>
               <td>{u.name}</td>
               <td>
-                {u.roles && u.roles.includes("CLIENT") ? (
-                  <Badge bg="secondary">Client (Read-only)</Badge>
-                ) : (
-                  <Badge bg={getRoleVariant(u.role)}>{u.role}</Badge>
-                )}
+                <Badge bg={getRoleVariant(getPrimaryRole(u))}>
+                  {getPrimaryRole(u)}
+                </Badge>
               </td>
               <td>
                 <Badge bg={u.status === "ACTIVE" ? "success" : "danger"}>
@@ -235,28 +262,43 @@ function Users() {
               <td>{u.email}</td>
               {canManageRoles && !isClient(user) && (
                 <td>
-                  {u.roles && u.roles.includes("CLIENT") ? null : (
-                    <>
-                      {u.role === "MEMBER" && (
-                        <Button
-                          size="sm"
-                          variant="outline-primary"
-                          onClick={() => handlePromoteToPM(u.id)}
-                        >
-                          Promote to PM
-                        </Button>
-                      )}
-                      {u.role === "PROJECT_MANAGER" && (
-                        <Button
-                          size="sm"
-                          variant="outline-secondary"
-                          onClick={() => handleDemoteToMember(u.id)}
-                        >
-                          Demote to Member
-                        </Button>
-                      )}
-                    </>
-                  )}
+                  {u.id === user?.id ? (
+                    <small className="text-muted">You</small>
+                  ) : (() => {
+                    const role = getPrimaryRole(u);
+                    return (
+                      <div className="d-flex flex-wrap gap-1">
+                        {role === "MEMBER" && (
+                          <>
+                            <Button size="sm" variant="outline-primary" onClick={() => handlePromoteToPM(u.id)}>
+                              → PM
+                            </Button>
+                            <Button size="sm" variant="outline-danger" onClick={() => handleMakeAdmin(u.id)}>
+                              → Admin
+                            </Button>
+                          </>
+                        )}
+                        {role === "PROJECT_MANAGER" && (
+                          <>
+                            <Button size="sm" variant="outline-secondary" onClick={() => handleDemoteToMember(u.id)}>
+                              → Member
+                            </Button>
+                            <Button size="sm" variant="outline-danger" onClick={() => handleMakeAdmin(u.id)}>
+                              → Admin
+                            </Button>
+                          </>
+                        )}
+                        {role === "ADMIN" && (
+                          <Button size="sm" variant="outline-secondary" onClick={() => handleRemoveAdmin(u.id)}>
+                            → Member
+                          </Button>
+                        )}
+                        {role === "CLIENT" && (
+                          <small className="text-muted">Client</small>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </td>
               )}
               {canManageRoles && isClient(user) && <td></td>}
