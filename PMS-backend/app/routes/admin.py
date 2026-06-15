@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.security import get_db, get_current_user, require_permission
 from app.core.permissions import USER_VIEW_ALL, USER_MANAGE_ROLES, PROJECT_CREATE
-from app.models.user import User
+from app.models.user import User, UserStatus
 from app.models.role import Role
 from app.models.user_role import UserRole
 from app.models.project import Project, ProjectStatus, ReviewStatus
@@ -211,6 +211,39 @@ def remove_admin(
     db.commit()
 
     return {"message": "User demoted to MEMBER"}
+
+@admin_router.post("/users/{user_id}/deactivate", status_code=status.HTTP_200_OK)
+def deactivate_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(USER_MANAGE_ROLES))
+):
+    """Deactivate (soft-disable) a user. They cannot log in but data is preserved."""
+    if current_user.id == user_id:
+        raise HTTPException(status_code=400, detail="You cannot deactivate yourself")
+
+    user = db.query(User).filter(User.id == user_id, User.is_deleted == False).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.status = UserStatus.INACTIVE
+    db.commit()
+    return {"message": "User deactivated"}
+
+@admin_router.post("/users/{user_id}/activate", status_code=status.HTTP_200_OK)
+def activate_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(USER_MANAGE_ROLES))
+):
+    """Re-activate a deactivated user."""
+    user = db.query(User).filter(User.id == user_id, User.is_deleted == False).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.status = UserStatus.ACTIVE
+    db.commit()
+    return {"message": "User activated"}
 
 @admin_router.post("/projects", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
 def create_project_admin(

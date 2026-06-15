@@ -105,6 +105,8 @@ export const adminUsersAPI = {
   demoteToMember: (userId) => api.post(`/admin/users/${userId}/demote-to-member`),
   makeAdmin: (userId) => api.post(`/admin/users/${userId}/make-admin`),
   removeAdmin: (userId) => api.post(`/admin/users/${userId}/remove-admin`),
+  deactivate: (userId) => api.post(`/admin/users/${userId}/deactivate`),
+  activate: (userId) => api.post(`/admin/users/${userId}/activate`),
 };
 
 // Admin Projects API

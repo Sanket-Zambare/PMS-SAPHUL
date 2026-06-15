@@ -187,9 +187,9 @@ function Sidebars({ isOpen = false, onClose = () => {} }) {
             {showNotifs && (
               <div
                 style={{
-                  position: "absolute",
-                  left: "110%",
-                  top: 0,
+                  position: "fixed",
+                  left: "260px",
+                  top: "80px",
                   width: "320px",
                   background: "#fff",
                   border: "1px solid #e0e0e0",

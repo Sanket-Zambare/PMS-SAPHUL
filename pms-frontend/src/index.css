@@ -368,7 +368,7 @@ button {
   background: #fffaf4;
   z-index: 200;
   transition: transform 0.25s ease;
-  overflow-y: auto;
+  overflow: visible;
 }
 
 .brand-lockup {

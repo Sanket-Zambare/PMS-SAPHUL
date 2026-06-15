@@ -28,6 +28,7 @@ function Users() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredUsers, setFilteredUsers] = useState([]);
+  const [roleChangeInfo, setRoleChangeInfo] = useState("");
 
   useEffect(() => {
     fetchUsers();
@@ -72,17 +73,12 @@ function Users() {
 
   const fetchUserProjects = async (usersList) => {
     try {
-      const userProjectsMap = {};
-      for (const user of usersList) {
-        try {
-          const response = await projectMembersAPI.getByUser(user.id);
-          userProjectsMap[user.id] = response.data;
-        } catch (error) {
-          console.error(`Failed to fetch projects for user ${user.id}:`, error);
-          userProjectsMap[user.id] = [];
-        }
-      }
-      setUserProjects(userProjectsMap);
+      const results = await Promise.all(
+        usersList.map((u) =>
+          projectMembersAPI.getByUser(u.id).then((r) => [u.id, r.data]).catch(() => [u.id, []])
+        )
+      );
+      setUserProjects(Object.fromEntries(results));
     } catch (error) {
       console.error("Failed to fetch user projects:", error);
     }
@@ -103,45 +99,75 @@ function Users() {
     ));
   };
 
-  const handlePromoteToPM = async (userId) => {
+  const showReloginWarning = (name) => {
+    setRoleChangeInfo(`Role updated for ${name}. Ask them to log out and back in for changes to take effect.`);
+    setTimeout(() => setRoleChangeInfo(""), 8000);
+  };
+
+  const handlePromoteToPM = async (u) => {
     try {
-      await adminUsersAPI.promoteToPM(userId);
-      updateUserRoles(userId, "PROJECT_MANAGER");
+      await adminUsersAPI.promoteToPM(u.id);
+      updateUserRoles(u.id, "PROJECT_MANAGER");
       setError("");
+      showReloginWarning(u.name);
     } catch (error) {
       setError(error.response?.data?.detail || "Failed to promote user");
     }
   };
 
-  const handleDemoteToMember = async (userId) => {
+  const handleDemoteToMember = async (u) => {
     try {
-      await adminUsersAPI.demoteToMember(userId);
-      updateUserRoles(userId, "MEMBER");
+      await adminUsersAPI.demoteToMember(u.id);
+      updateUserRoles(u.id, "MEMBER");
       setError("");
+      showReloginWarning(u.name);
     } catch (error) {
       setError(error.response?.data?.detail || "Failed to demote user");
     }
   };
 
-  const handleMakeAdmin = async (userId) => {
-    if (!window.confirm("Make this user an Admin? They will have full access.")) return;
+  const handleMakeAdmin = async (u) => {
+    if (!window.confirm(`Make ${u.name} an Admin? They will have full access.`)) return;
     try {
-      await adminUsersAPI.makeAdmin(userId);
-      updateUserRoles(userId, "ADMIN");
+      await adminUsersAPI.makeAdmin(u.id);
+      updateUserRoles(u.id, "ADMIN");
       setError("");
+      showReloginWarning(u.name);
     } catch (error) {
       setError(error.response?.data?.detail || "Failed to make admin");
     }
   };
 
-  const handleRemoveAdmin = async (userId) => {
-    if (!window.confirm("Remove admin access? This user will become a Member.")) return;
+  const handleRemoveAdmin = async (u) => {
+    if (!window.confirm(`Remove admin access from ${u.name}? They will become a Member.`)) return;
     try {
-      await adminUsersAPI.removeAdmin(userId);
-      updateUserRoles(userId, "MEMBER");
+      await adminUsersAPI.removeAdmin(u.id);
+      updateUserRoles(u.id, "MEMBER");
       setError("");
+      showReloginWarning(u.name);
     } catch (error) {
       setError(error.response?.data?.detail || "Failed to remove admin");
+    }
+  };
+
+  const handleDeactivate = async (u) => {
+    if (!window.confirm(`Deactivate ${u.name}? They won't be able to log in.`)) return;
+    try {
+      await adminUsersAPI.deactivate(u.id);
+      setUsers(users.map((usr) => usr.id === u.id ? { ...usr, status: "INACTIVE" } : usr));
+      setError("");
+    } catch (error) {
+      setError(error.response?.data?.detail || "Failed to deactivate user");
+    }
+  };
+
+  const handleActivate = async (u) => {
+    try {
+      await adminUsersAPI.activate(u.id);
+      setUsers(users.map((usr) => usr.id === u.id ? { ...usr, status: "ACTIVE" } : usr));
+      setError("");
+    } catch (error) {
+      setError(error.response?.data?.detail || "Failed to activate user");
     }
   };
 
@@ -233,6 +259,11 @@ function Users() {
           {error}
         </Alert>
       )}
+      {roleChangeInfo && (
+        <Alert variant="warning" dismissible onClose={() => setRoleChangeInfo("")}>
+          ⚠️ {roleChangeInfo}
+        </Alert>
+      )}
 
       <Table bordered hover responsive>
         <thead>
@@ -270,32 +301,27 @@ function Users() {
                       <div className="d-flex flex-wrap gap-1">
                         {role === "MEMBER" && (
                           <>
-                            <Button size="sm" variant="outline-primary" onClick={() => handlePromoteToPM(u.id)}>
-                              → PM
-                            </Button>
-                            <Button size="sm" variant="outline-danger" onClick={() => handleMakeAdmin(u.id)}>
-                              → Admin
-                            </Button>
+                            <Button size="sm" variant="outline-primary" onClick={() => handlePromoteToPM(u)}>→ PM</Button>
+                            <Button size="sm" variant="outline-danger" onClick={() => handleMakeAdmin(u)}>→ Admin</Button>
                           </>
                         )}
                         {role === "PROJECT_MANAGER" && (
                           <>
-                            <Button size="sm" variant="outline-secondary" onClick={() => handleDemoteToMember(u.id)}>
-                              → Member
-                            </Button>
-                            <Button size="sm" variant="outline-danger" onClick={() => handleMakeAdmin(u.id)}>
-                              → Admin
-                            </Button>
+                            <Button size="sm" variant="outline-secondary" onClick={() => handleDemoteToMember(u)}>→ Member</Button>
+                            <Button size="sm" variant="outline-danger" onClick={() => handleMakeAdmin(u)}>→ Admin</Button>
                           </>
                         )}
                         {role === "ADMIN" && (
-                          <Button size="sm" variant="outline-secondary" onClick={() => handleRemoveAdmin(u.id)}>
-                            → Member
-                          </Button>
+                          <Button size="sm" variant="outline-secondary" onClick={() => handleRemoveAdmin(u)}>→ Member</Button>
                         )}
-                        {role === "CLIENT" && (
-                          <small className="text-muted">Client</small>
-                        )}
+                        {role === "CLIENT" && <small className="text-muted">Client</small>}
+                        <Button
+                          size="sm"
+                          variant={u.status === "ACTIVE" ? "outline-dark" : "outline-success"}
+                          onClick={() => u.status === "ACTIVE" ? handleDeactivate(u) : handleActivate(u)}
+                        >
+                          {u.status === "ACTIVE" ? "Deactivate" : "Activate"}
+                        </Button>
                       </div>
                     );
                   })()}
