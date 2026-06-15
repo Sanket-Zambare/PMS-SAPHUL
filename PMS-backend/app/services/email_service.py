@@ -1,42 +1,39 @@
-import requests
+import smtplib
 import logging
 import os
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 logger = logging.getLogger(__name__)
 
-RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASS = os.getenv("SMTP_PASS")
+SMTP_FROM = os.getenv("SMTP_FROM", SMTP_USER)
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://sane-sigma.vercel.app")
-FROM_EMAIL = "Saphul PMS <onboarding@resend.dev>"
 
 
 def _send_email(to_email: str, subject: str, html_content: str) -> bool:
-    """Send email using Resend HTTP API. Returns True if successful."""
-    if not RESEND_API_KEY:
-        logger.error("RESEND_API_KEY not set. Cannot send email.")
+    """Send email using SMTP. Returns True if successful."""
+    if not SMTP_USER or not SMTP_PASS:
+        logger.error("SMTP_USER or SMTP_PASS not set. Cannot send email.")
         return False
 
     try:
-        response = requests.post(
-            "https://api.resend.com/emails",
-            headers={
-                "Authorization": f"Bearer {RESEND_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "from": FROM_EMAIL,
-                "to": [to_email],
-                "subject": subject,
-                "html": html_content,
-            },
-            timeout=10,  # fail fast — no hanging
-        )
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"Saphul PMS <{SMTP_FROM}>"
+        msg["To"] = to_email
+        msg.attach(MIMEText(html_content, "html"))
 
-        if response.status_code == 200 or response.status_code == 201:
-            logger.info(f"Email sent successfully to {to_email}")
-            return True
-        else:
-            logger.error(f"Resend API error {response.status_code}: {response.text}")
-            return False
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_USER, to_email, msg.as_string())
+
+        logger.info(f"Email sent successfully to {to_email}")
+        return True
 
     except Exception as e:
         logger.error(f"Failed to send email to {to_email}: {str(e)}")
@@ -45,7 +42,6 @@ def _send_email(to_email: str, subject: str, html_content: str) -> bool:
 
 class EmailService:
     def send_signup_email(self, user_email: str, user_name: str) -> None:
-        """Send signup confirmation email."""
         subject = "Welcome to Saphul PMS"
         html_content = f"""
         <html>
@@ -62,10 +58,8 @@ class EmailService:
             logger.warning(f"Signup confirmation email failed for {user_email}")
 
     def send_password_reset_email(self, user_email: str, reset_token: str, user_name: str) -> None:
-        """Send password reset email with secure token."""
         subject = "Password Reset - Saphul PMS"
         reset_url = f"{FRONTEND_URL}/reset-password?token={reset_token}"
-
         html_content = f"""
         <html>
         <body>
@@ -85,7 +79,6 @@ class EmailService:
             logger.warning(f"Password reset email failed for {user_email}")
 
     def send_task_assigned_email(self, user_email: str, user_name: str, task_title: str, task_id: int) -> None:
-        """Send email when a task is assigned to a user."""
         subject = "You have been assigned a new task - Saphul PMS"
         task_url = f"{FRONTEND_URL}/tasks/{task_id}"
         html_content = f"""
@@ -105,7 +98,6 @@ class EmailService:
             logger.warning(f"Task assigned email failed for {user_email}")
 
     def send_task_approved_email(self, user_email: str, user_name: str, task_title: str, task_id: int) -> None:
-        """Send email when a task is approved."""
         subject = "Your task has been approved - Saphul PMS"
         task_url = f"{FRONTEND_URL}/tasks/{task_id}"
         html_content = f"""
@@ -124,7 +116,6 @@ class EmailService:
             logger.warning(f"Task approved email failed for {user_email}")
 
     def send_task_rejected_email(self, user_email: str, user_name: str, task_title: str, task_id: int) -> None:
-        """Send email when a task is rejected."""
         subject = "Your task needs rework - Saphul PMS"
         task_url = f"{FRONTEND_URL}/tasks/{task_id}"
         html_content = f"""
@@ -144,10 +135,8 @@ class EmailService:
             logger.warning(f"Task rejected email failed for {user_email}")
 
     def send_invite_email(self, email: str, token: str, name: str) -> None:
-        """Send client invitation email."""
         subject = "Invitation to join Saphul PMS"
         invite_url = f"{FRONTEND_URL}/accept-invite?token={token}"
-
         html_content = f"""
         <html>
         <body>

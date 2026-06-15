@@ -6,6 +6,7 @@ from datetime import timedelta, datetime
 from pydantic import BaseModel, EmailStr, validator
 import secrets
 import string
+import logging
 from app.core.security import (
     verify_password,
     get_password_hash,
