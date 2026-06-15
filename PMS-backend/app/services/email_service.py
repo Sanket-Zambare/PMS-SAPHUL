@@ -1,56 +1,43 @@
-import smtplib
+import requests
 import logging
 import os
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-
-_email_executor = ThreadPoolExecutor(max_workers=2)
 
 logger = logging.getLogger(__name__)
 
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER")
-SMTP_PASS = os.getenv("SMTP_PASS")
-SMTP_FROM = os.getenv("SMTP_FROM", SMTP_USER)
+BREVO_API_KEY = os.getenv("BREVO_API_KEY")
+SENDER_EMAIL = os.getenv("SMTP_FROM", "sanketzambare17@gmail.com")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://sane-sigma.vercel.app")
 
 
-def _send_email_sync(to_email: str, subject: str, html_content: str) -> bool:
-    """Synchronous SMTP send — run in a thread, never in the event loop directly."""
-    if not SMTP_USER or not SMTP_PASS:
-        logger.error("SMTP_USER or SMTP_PASS not set. Cannot send email.")
+def _send_email(to_email: str, subject: str, html_content: str) -> bool:
+    """Send email via Brevo HTTP API. Returns True if successful."""
+    if not BREVO_API_KEY:
+        logger.error("BREVO_API_KEY not set. Cannot send email.")
         return False
 
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = f"Saphul PMS <{SMTP_FROM}>"
-        msg["To"] = to_email
-        msg.attach(MIMEText(html_content, "html"))
-
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
-            server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(SMTP_USER, to_email, msg.as_string())
-
-        logger.info(f"Email sent successfully to {to_email}")
-        return True
-
+        response = requests.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers={
+                "api-key": BREVO_API_KEY,
+                "Content-Type": "application/json",
+            },
+            json={
+                "sender": {"name": "Saphul PMS", "email": SENDER_EMAIL},
+                "to": [{"email": to_email}],
+                "subject": subject,
+                "htmlContent": html_content,
+            },
+            timeout=10,
+        )
+        if response.status_code in (200, 201):
+            logger.info(f"Email sent successfully to {to_email}")
+            return True
+        else:
+            logger.error(f"Brevo API error {response.status_code}: {response.text}")
+            return False
     except Exception as e:
         logger.error(f"Failed to send email to {to_email}: {str(e)}")
-        return False
-
-
-def _send_email(to_email: str, subject: str, html_content: str) -> bool:
-    """Fire-and-forget email in a background thread. Never blocks the caller."""
-    try:
-        _email_executor.submit(_send_email_sync, to_email, subject, html_content)
-        return True
-    except Exception as e:
-        logger.error(f"Failed to queue email to {to_email}: {str(e)}")
         return False
 
 
