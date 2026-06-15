@@ -295,6 +295,53 @@ button {
   min-height: 100vh;
 }
 
+/* ===== Mobile top bar (hamburger) ===== */
+.mobile-topbar {
+  display: none;
+}
+
+.hamburger-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-radius: 6px;
+}
+.hamburger-btn span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: #333;
+  border-radius: 2px;
+  transition: background 0.2s;
+}
+.hamburger-btn:hover span { background: #E8640A; }
+
+.sidebar-close-btn {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.4rem;
+  color: #555;
+  padding: 2px 6px;
+  border-radius: 6px;
+  line-height: 1;
+  align-self: flex-end;
+}
+
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 199;
+}
+
+/* ===== App shell ===== */
 .app-shell {
   display: flex;
   min-height: 100vh;
@@ -312,12 +359,16 @@ button {
   position: sticky;
   top: 0;
   width: 248px;
+  min-width: 248px;
   height: 100vh;
   padding: 18px 14px;
   display: flex;
   flex-direction: column;
   border-right: 1px solid #e7e0d9;
   background: #fffaf4;
+  z-index: 200;
+  transition: transform 0.25s ease;
+  overflow-y: auto;
 }
 
 .brand-lockup {
@@ -325,6 +376,7 @@ button {
   align-items: center;
   gap: 10px;
   padding: 8px 10px 18px;
+  flex: 1;
 }
 
 .brand-mark {
@@ -683,43 +735,140 @@ button {
   .metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
   .app-main {
     padding: 24px;
   }
 }
 
-@media (max-width: 760px) {
-  .app-shell {
-    display: block;
-  }
-
+/* ===== Tablet (768px – 1040px): narrow sidebar ===== */
+@media (max-width: 1040px) and (min-width: 769px) {
   .app-sidebar {
-    position: static;
-    width: 100%;
-    height: auto;
-    border-right: 0;
+    width: 200px;
+    min-width: 200px;
+  }
+}
+
+/* ===== Mobile (≤ 768px): hamburger + overlay sidebar ===== */
+@media (max-width: 768px) {
+  /* Show mobile top bar */
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #fffaf4;
     border-bottom: 1px solid #e7e0d9;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    width: 100%;
   }
 
-  .side-nav {
-    flex-direction: row;
-    overflow-x: auto;
+  .mobile-topbar .mobile-brand-mark {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 7px;
+    background: #E8640A;
+    color: #fff;
+    font-weight: 800;
+    font-size: 14px;
   }
 
-  .side-link {
-    flex: 0 0 auto;
+  .mobile-topbar .mobile-brand-name {
+    font-size: 15px;
+    font-weight: 800;
+    color: #211f1d;
+    letter-spacing: 0.04em;
   }
 
-  .app-main {
-    padding: 20px 16px;
+  /* App shell stacks vertically */
+  .app-shell {
+    flex-direction: column;
   }
 
-  .page-header {
+  /* Sidebar becomes a fixed overlay drawer */
+  .app-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 260px;
+    min-width: 260px;
+    transform: translateX(-100%);
+    box-shadow: 4px 0 24px rgba(0,0,0,0.15);
+    border-right: 1px solid #e7e0d9;
+  }
+
+  .app-sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+
+  /* Show overlay scrim */
+  .sidebar-overlay {
     display: block;
+  }
+
+  /* Show close button inside sidebar */
+  .sidebar-close-btn {
+    display: flex;
+  }
+
+  /* Main content fills full width */
+  .app-main {
+    padding: 16px;
+    width: 100%;
+  }
+
+  /* Layout adjustments */
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .page-title {
+    font-size: 22px;
   }
 
   .metric-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbar-search {
+    max-width: 100%;
+  }
+}
+
+/* ===== Extra small (≤ 480px): phones ===== */
+@media (max-width: 480px) {
+  .metric-grid {
     grid-template-columns: 1fr;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+
+  .app-main {
+    padding: 12px;
+  }
+
+  /* Stack table actions */
+  .modern-table td, .modern-table th {
+    padding: 10px 10px !important;
+    font-size: 13px;
+  }
+
+  /* Auth pages */
+  .auth-card-shell {
+    padding: 1.5rem 1.25rem;
+    border-radius: 14px;
   }
 }

@@ -314,5 +314,12 @@ export const filesAPI = {
   delete: (id) => api.delete(`/files/${id}`),
 };
 
+export const commentsAPI = {
+  getAll: (taskId) => api.get(`/tasks/${taskId}/comments`),
+  create: (taskId, content) => api.post(`/tasks/${taskId}/comments`, { content }),
+  update: (taskId, commentId, content) => api.put(`/tasks/${taskId}/comments/${commentId}`, { content }),
+  delete: (taskId, commentId) => api.delete(`/tasks/${taskId}/comments/${commentId}`),
+};
+
 export default api;
 

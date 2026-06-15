@@ -14,6 +14,7 @@ from app.models.activity_log import ActivityLog, EntityType
 from app.models.approval import Approval, ApprovalEntityType, ApprovalStatus as ApprovalStatusEnum
 from app.models.project_task_stats import ProjectTaskStats
 from app.models.notification import Notification
+from app.models.task_comment import TaskComment
 
 __all__ = [
     "Base",
@@ -44,4 +45,5 @@ __all__ = [
     "ApprovalStatusEnum",
     "ProjectTaskStats",
     "Notification",
+    "TaskComment",
 ]

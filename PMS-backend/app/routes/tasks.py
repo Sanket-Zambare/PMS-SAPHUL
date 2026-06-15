@@ -295,6 +295,9 @@ def get_tasks(
     if status_filter:
         query = query.filter(Task.status == status_filter)
 
+    # Exclude subtasks — they only appear inside their parent task's detail view
+    query = query.filter(Task.parent_task_id == None)
+
     tasks = query.offset(skip).limit(limit).all()
     return tasks
 
@@ -414,6 +417,19 @@ def update_task(
                     detail=f"Cannot change task status back to {new_status.value} once it has been completed or is under review"
                 )
 
+        # Block marking a parent task DONE if it has incomplete subtasks
+        if new_status == TaskStatus.DONE and task.parent_task_id is None:
+            incomplete_subtasks = db.query(Task).filter(
+                Task.parent_task_id == task.id,
+                Task.is_deleted == False,
+                Task.status != TaskStatus.DONE
+            ).count()
+            if incomplete_subtasks > 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Cannot mark task as done — {incomplete_subtasks} subtask(s) are not yet completed"
+                )
+
     # Track changes
     status_changed = 'status' in update_data and update_data['status'] != task.status
     old_assignee = task.assigned_to
@@ -435,10 +451,25 @@ def update_task(
     # Set completed_at if status changed to DONE
     if task.status == TaskStatus.DONE and not task.completed_at:
         task.completed_at = datetime.utcnow()
-    
+
     db.commit()
     db.refresh(task)
-    
+
+    # Auto-complete parent task when all subtasks are DONE
+    if task.parent_task_id and task.status == TaskStatus.DONE:
+        remaining = db.query(Task).filter(
+            Task.parent_task_id == task.parent_task_id,
+            Task.is_deleted == False,
+            Task.status != TaskStatus.DONE
+        ).count()
+        if remaining == 0:
+            parent = db.query(Task).filter(Task.id == task.parent_task_id).first()
+            if parent and parent.status != TaskStatus.DONE:
+                parent.status = TaskStatus.DONE
+                parent.progress = Decimal("100.00")
+                parent.completed_at = datetime.utcnow()
+                db.commit()
+
     # Log activity
     try:
         action = "status_changed" if status_changed else "update"
@@ -713,4 +744,145 @@ def delete_task(
     except Exception as e:
         pass
     
+    return None
+
+
+# ─────────────────── Comments ───────────────────
+
+from app.models.task_comment import TaskComment
+from pydantic import BaseModel as PydanticBase
+
+class CommentCreate(PydanticBase):
+    content: str
+
+class CommentUpdate(PydanticBase):
+    content: str
+
+class CommentResponse(PydanticBase):
+    id: int
+    task_id: int
+    user_id: int
+    content: str
+    created_at: datetime
+    updated_at: datetime
+    user_name: str = ""
+    user_initial: str = ""
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/{task_id}/comments", response_model=List[CommentResponse])
+def get_comments(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    task = db.query(Task).filter(Task.id == task_id, Task.is_deleted == False).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if not can_access_project(db, current_user.id, task.project_id):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    comments = (
+        db.query(TaskComment)
+        .filter(TaskComment.task_id == task_id, TaskComment.is_deleted == False)
+        .order_by(TaskComment.created_at.asc())
+        .all()
+    )
+    result = []
+    for c in comments:
+        user = db.query(User).filter(User.id == c.user_id).first()
+        name = user.name if user else "Unknown"
+        result.append(CommentResponse(
+            id=c.id, task_id=c.task_id, user_id=c.user_id,
+            content=c.content, created_at=c.created_at, updated_at=c.updated_at,
+            user_name=name,
+            user_initial=name[0].upper() if name else "?",
+        ))
+    return result
+
+
+@router.post("/{task_id}/comments", response_model=CommentResponse, status_code=201)
+def create_comment(
+    task_id: int,
+    body: CommentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    task = db.query(Task).filter(Task.id == task_id, Task.is_deleted == False).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if not can_access_project(db, current_user.id, task.project_id):
+        raise HTTPException(status_code=403, detail="Access denied")
+    if not body.content.strip():
+        raise HTTPException(status_code=400, detail="Comment cannot be empty")
+
+    comment = TaskComment(task_id=task_id, user_id=current_user.id, content=body.content.strip())
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+
+    return CommentResponse(
+        id=comment.id, task_id=comment.task_id, user_id=comment.user_id,
+        content=comment.content, created_at=comment.created_at, updated_at=comment.updated_at,
+        user_name=current_user.name,
+        user_initial=current_user.name[0].upper() if current_user.name else "?",
+    )
+
+
+@router.put("/{task_id}/comments/{comment_id}", response_model=CommentResponse)
+def update_comment(
+    task_id: int,
+    comment_id: int,
+    body: CommentUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    comment = db.query(TaskComment).filter(
+        TaskComment.id == comment_id,
+        TaskComment.task_id == task_id,
+        TaskComment.is_deleted == False,
+    ).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    if comment.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only edit your own comments")
+    if not body.content.strip():
+        raise HTTPException(status_code=400, detail="Comment cannot be empty")
+
+    comment.content = body.content.strip()
+    comment.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(comment)
+
+    return CommentResponse(
+        id=comment.id, task_id=comment.task_id, user_id=comment.user_id,
+        content=comment.content, created_at=comment.created_at, updated_at=comment.updated_at,
+        user_name=current_user.name,
+        user_initial=current_user.name[0].upper() if current_user.name else "?",
+    )
+
+
+@router.delete("/{task_id}/comments/{comment_id}", status_code=204)
+def delete_comment(
+    task_id: int,
+    comment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    comment = db.query(TaskComment).filter(
+        TaskComment.id == comment_id,
+        TaskComment.task_id == task_id,
+        TaskComment.is_deleted == False,
+    ).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+
+    is_admin_user = is_admin(db, current_user.id)
+    if comment.user_id != current_user.id and not is_admin_user:
+        raise HTTPException(status_code=403, detail="You can only delete your own comments")
+
+    comment.is_deleted = True
+    db.commit()
     return None

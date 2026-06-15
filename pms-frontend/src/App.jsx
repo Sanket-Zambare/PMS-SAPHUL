@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -21,9 +22,24 @@ import Users from "./pages/Users";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 function Layout() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
     <div className="app-shell">
-      <Sidebars />
+      {/* Mobile top bar — hidden on desktop via CSS */}
+      <div className="mobile-topbar">
+        <button className="hamburger-btn" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
+          <span /><span /><span />
+        </button>
+        <div className="mobile-brand-mark">S</div>
+        <span className="mobile-brand-name">SANE</span>
+      </div>
+
+      {/* Backdrop overlay — visible only on mobile when sidebar open */}
+      {sidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      <Sidebars isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main className="app-main">
         <Outlet />
       </main>

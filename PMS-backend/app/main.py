@@ -27,7 +27,7 @@ from app.routes import (
 import traceback
 import os
 
-app = FastAPI(title="SAPHUL PMS Backend")
+app = FastAPI(title="SANE PMS Backend")
 
 # CORS middleware - MUST be added before routes
 # =========================
@@ -125,7 +125,7 @@ Base.metadata.create_all(bind=engine)
 
 @app.get("/")
 def root():
-    return {"message": "SAPHUL PMS Backend is running"}
+    return {"message": "SANE PMS Backend is running"}
 
 @app.get("/health")
 def health_check():

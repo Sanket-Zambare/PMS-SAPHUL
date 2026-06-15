@@ -7,7 +7,7 @@ import PermissionGate from "./PermissionGate";
 import Button from "react-bootstrap/Button";
 import { notificationsAPI } from "../services/api";
 
-function Sidebars() {
+function Sidebars({ isOpen = false, onClose = () => {} }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
@@ -17,7 +17,12 @@ function Sidebars() {
 
   const handleLogout = () => {
     logout();
+    onClose();
     navigate("/welcome");
+  };
+
+  const handleNavClick = () => {
+    onClose();
   };
 
   const userInitial = user?.name?.trim()?.charAt(0)?.toUpperCase() || "U";
@@ -117,13 +122,17 @@ function Sidebars() {
   };
 
   return (
-    <aside className="app-sidebar">
-      <div className="brand-lockup">
-        <div className="brand-mark">S</div>
-        <div>
-          <p className="brand-title">SANE</p>
-          <p className="brand-subtitle">Project workspace</p>
+    <aside className={`app-sidebar${isOpen ? " sidebar-open" : ""}`}>
+      {/* Close button — only visible on mobile */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className="brand-lockup" style={{ paddingBottom: 0, flex: 1 }}>
+          <div className="brand-mark">S</div>
+          <div>
+            <p className="brand-title">SANE</p>
+            <p className="brand-subtitle">Project workspace</p>
+          </div>
         </div>
+        <button className="sidebar-close-btn" onClick={onClose} aria-label="Close menu">✕</button>
       </div>
 
       {user && (
@@ -292,28 +301,28 @@ function Sidebars() {
 
       <nav className="side-nav">
         <PermissionGate permission={PERMISSIONS.DASHBOARD_VIEW}>
-          <NavLink to="/" className="side-link">
+          <NavLink to="/" className="side-link" onClick={handleNavClick}>
             <span className="side-icon">D</span>
             <span>Dashboard</span>
           </NavLink>
         </PermissionGate>
 
         <PermissionGate permissions={[PERMISSIONS.PROJECT_VIEW_ALL, PERMISSIONS.PROJECT_VIEW_ASSIGNED]}>
-          <NavLink to="/projects" className="side-link">
+          <NavLink to="/projects" className="side-link" onClick={handleNavClick}>
             <span className="side-icon">P</span>
             <span>Projects</span>
           </NavLink>
         </PermissionGate>
 
         <PermissionGate permission={PERMISSIONS.TASK_VIEW}>
-          <NavLink to="/tasks" className="side-link">
+          <NavLink to="/tasks" className="side-link" onClick={handleNavClick}>
             <span className="side-icon">T</span>
             <span>Tasks</span>
           </NavLink>
         </PermissionGate>
 
         <PermissionGate permission={PERMISSIONS.USER_VIEW_ALL}>
-          <NavLink to="/users" className="side-link">
+          <NavLink to="/users" className="side-link" onClick={handleNavClick}>
             <span className="side-icon">U</span>
             <span>Users</span>
           </NavLink>

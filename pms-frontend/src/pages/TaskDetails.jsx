@@ -12,7 +12,7 @@ import Alert from "react-bootstrap/Alert";
 import ProgressBar from "react-bootstrap/ProgressBar";
 import { useAuth } from "../context/AuthContext";
 import { usePermissions } from "../hooks/usePermissions";
-import { tasksAPI, projectsAPI, usersAPI, projectMembersAPI, notificationsAPI } from "../services/api";
+import { tasksAPI, projectsAPI, usersAPI, projectMembersAPI, notificationsAPI, commentsAPI, activityLogsAPI } from "../services/api";
 import { PERMISSIONS, isClient } from "../utils/permissions";
 
 function TaskDetails() {
@@ -35,12 +35,26 @@ function TaskDetails() {
   const [editingSubtask, setEditingSubtask] = useState(null);
   const [subtaskForm, setSubtaskForm] = useState({ title: "", description: "", assigned_to: "", status: "TODO" });
 
+  // Comments state
+  const [comments, setComments] = useState([]);
+  const [commentText, setCommentText] = useState("");
+  const [editingComment, setEditingComment] = useState(null);
+  const [editCommentText, setEditCommentText] = useState("");
+  const [commentLoading, setCommentLoading] = useState(false);
+
+  // Activity log state
+  const [activityLog, setActivityLog] = useState([]);
+  const [showActivity, setShowActivity] = useState(false);
+
   useEffect(() => {
     fetchTaskDetails();
   }, [id]);
 
   useEffect(() => {
-    if (task) fetchSubtasks();
+    if (task) {
+      fetchSubtasks();
+      fetchComments();
+    }
   }, [task?.id]);
 
   const fetchTaskDetails = async () => {
@@ -136,6 +150,74 @@ function TaskDetails() {
     } catch (err) {
       setError(err.response?.data?.detail || "Failed to delete subtask");
     }
+  };
+
+  const fetchComments = async () => {
+    try {
+      const res = await commentsAPI.getAll(task.id);
+      setComments(res.data || []);
+    } catch {
+      // silently fail
+    }
+  };
+
+  const handlePostComment = async () => {
+    if (!commentText.trim()) return;
+    setCommentLoading(true);
+    try {
+      const res = await commentsAPI.create(task.id, commentText.trim());
+      setComments((prev) => [...prev, res.data]);
+      setCommentText("");
+    } catch (err) {
+      setError(err.response?.data?.detail || "Failed to post comment");
+    } finally {
+      setCommentLoading(false);
+    }
+  };
+
+  const handleStartEditComment = (comment) => {
+    setEditingComment(comment.id);
+    setEditCommentText(comment.content);
+  };
+
+  const handleSaveEditComment = async (commentId) => {
+    try {
+      const res = await commentsAPI.update(task.id, commentId, editCommentText.trim());
+      setComments((prev) => prev.map((c) => (c.id === commentId ? res.data : c)));
+      setEditingComment(null);
+    } catch (err) {
+      setError(err.response?.data?.detail || "Failed to edit comment");
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!window.confirm("Delete this comment?")) return;
+    try {
+      await commentsAPI.delete(task.id, commentId);
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+    } catch (err) {
+      setError(err.response?.data?.detail || "Failed to delete comment");
+    }
+  };
+
+  const fetchActivity = async () => {
+    try {
+      const res = await activityLogsAPI.getByTask(task.id);
+      setActivityLog(res.data || []);
+      setShowActivity(true);
+    } catch {
+      // silently fail
+    }
+  };
+
+  const timeAgo = (dateStr) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
   };
 
   const handleUpdateTask = async () => {
@@ -500,6 +582,92 @@ function TaskDetails() {
               )}
             </Card.Body>
           </Card>
+
+          {/* Comments */}
+          <Card>
+            <Card.Header>
+              <h5 className="mb-0">Discussion ({comments.length})</h5>
+            </Card.Header>
+            <Card.Body>
+              {/* Comment list */}
+              <div style={{ maxHeight: "320px", overflowY: "auto", marginBottom: "16px" }}>
+                {comments.length === 0 ? (
+                  <p className="text-muted mb-0" style={{ fontSize: "0.87rem" }}>No comments yet. Start the discussion.</p>
+                ) : (
+                  comments.map((c) => (
+                    <div key={c.id} style={{ display: "flex", gap: "10px", marginBottom: "14px" }}>
+                      <div style={{
+                        width: "32px", height: "32px", borderRadius: "50%",
+                        background: "#f1d4c9", color: "#6b2c1f",
+                        display: "grid", placeItems: "center", fontWeight: 700,
+                        fontSize: "13px", flexShrink: 0,
+                      }}>
+                        {c.user_initial}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                          <span style={{ fontWeight: 700, fontSize: "0.82rem" }}>{c.user_name}</span>
+                          <span style={{ fontSize: "0.72rem", color: "#aaa" }}>{timeAgo(c.created_at)}</span>
+                          {c.user_id === user?.id && (
+                            <div style={{ marginLeft: "auto", display: "flex", gap: "6px" }}>
+                              <button
+                                onClick={() => handleStartEditComment(c)}
+                                style={{ background: "none", border: "none", cursor: "pointer", color: "#888", fontSize: "0.75rem", padding: 0 }}
+                              >Edit</button>
+                              <button
+                                onClick={() => handleDeleteComment(c.id)}
+                                style={{ background: "none", border: "none", cursor: "pointer", color: "#dc3545", fontSize: "0.75rem", padding: 0 }}
+                              >Delete</button>
+                            </div>
+                          )}
+                        </div>
+                        {editingComment === c.id ? (
+                          <div style={{ marginTop: "4px" }}>
+                            <Form.Control
+                              as="textarea"
+                              rows={2}
+                              value={editCommentText}
+                              onChange={(e) => setEditCommentText(e.target.value)}
+                              style={{ fontSize: "0.84rem" }}
+                            />
+                            <div style={{ display: "flex", gap: "6px", marginTop: "6px" }}>
+                              <Button size="sm" variant="primary" onClick={() => handleSaveEditComment(c.id)}>Save</Button>
+                              <Button size="sm" variant="outline-secondary" onClick={() => setEditingComment(null)}>Cancel</Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p style={{ margin: "4px 0 0", fontSize: "0.84rem", color: "#333", whiteSpace: "pre-wrap" }}>{c.content}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              {/* Post comment */}
+              <div style={{ display: "flex", gap: "8px" }}>
+                <Form.Control
+                  as="textarea"
+                  rows={2}
+                  placeholder="Write a comment..."
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  style={{ fontSize: "0.84rem", resize: "none" }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handlePostComment();
+                  }}
+                />
+                <Button
+                  variant="primary"
+                  disabled={commentLoading || !commentText.trim()}
+                  onClick={handlePostComment}
+                  style={{ alignSelf: "flex-end", whiteSpace: "nowrap" }}
+                >
+                  {commentLoading ? "..." : "Post"}
+                </Button>
+              </div>
+              <small className="text-muted">Ctrl+Enter to post</small>
+            </Card.Body>
+          </Card>
         </Col>
 
         <Col md={4}>
@@ -530,9 +698,54 @@ function TaskDetails() {
                     </Button>
                   </>
                 )}
+                {hasPermission(PERMISSIONS.TASK_DELETE) && (
+                  <Button variant="outline-danger" onClick={handleDeleteTask}>
+                    Delete Task
+                  </Button>
+                )}
+                <Button
+                  variant="outline-secondary"
+                  onClick={showActivity ? () => setShowActivity(false) : fetchActivity}
+                >
+                  {showActivity ? "Hide Activity" : "View Activity Log"}
+                </Button>
               </div>
             </Card.Body>
           </Card>
+
+          {/* Activity Log */}
+          {showActivity && (
+            <Card className="mt-3">
+              <Card.Header>
+                <h6 className="mb-0">Activity Log</h6>
+              </Card.Header>
+              <Card.Body style={{ padding: "12px 16px", maxHeight: "320px", overflowY: "auto" }}>
+                {activityLog.length === 0 ? (
+                  <p className="text-muted mb-0" style={{ fontSize: "0.84rem" }}>No activity recorded.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {activityLog.map((log) => (
+                      <div key={log.id} style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+                        <div style={{
+                          width: "8px", height: "8px", borderRadius: "50%",
+                          background: "#E8640A", flexShrink: 0, marginTop: "5px",
+                        }} />
+                        <div>
+                          <span style={{ fontSize: "0.82rem", color: "#333" }}>
+                            <strong>{log.performed_by_name || `User #${log.performed_by}`}</strong>{" "}
+                            {log.action?.replace(/_/g, " ")}
+                          </span>
+                          <div style={{ fontSize: "0.72rem", color: "#aaa" }}>
+                            {new Date(log.created_at).toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card.Body>
+            </Card>
+          )}
         </Col>
       </Row>
 

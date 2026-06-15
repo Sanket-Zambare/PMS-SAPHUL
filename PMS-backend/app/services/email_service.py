@@ -23,7 +23,7 @@ def _send_email(to_email: str, subject: str, html_content: str) -> bool:
                 "Content-Type": "application/json",
             },
             json={
-                "sender": {"name": "Saphul PMS", "email": SENDER_EMAIL},
+                "sender": {"name": "SANE PMS", "email": SENDER_EMAIL},
                 "to": [{"email": to_email}],
                 "subject": subject,
                 "htmlContent": html_content,
@@ -43,15 +43,15 @@ def _send_email(to_email: str, subject: str, html_content: str) -> bool:
 
 class EmailService:
     def send_signup_email(self, user_email: str, user_name: str) -> None:
-        subject = "Welcome to Saphul PMS"
+        subject = "Welcome to SANE PMS"
         html_content = f"""
         <html>
         <body>
-            <h2>Welcome to Saphul PMS, {user_name}!</h2>
+            <h2>Welcome to SANE PMS, {user_name}!</h2>
             <p>Your account has been successfully created.</p>
             <p>You can now log in and start managing your projects.</p>
             <br>
-            <p>Best regards,<br>Saphul PMS Team</p>
+            <p>Best regards,<br>SANE Team</p>
         </body>
         </html>
         """
@@ -59,20 +59,20 @@ class EmailService:
             logger.warning(f"Signup confirmation email failed for {user_email}")
 
     def send_password_reset_email(self, user_email: str, reset_token: str, user_name: str) -> None:
-        subject = "Password Reset - Saphul PMS"
+        subject = "Password Reset - SANE PMS"
         reset_url = f"{FRONTEND_URL}/reset-password?token={reset_token}"
         html_content = f"""
         <html>
         <body>
             <h2>Password Reset Request</h2>
             <p>Hello {user_name},</p>
-            <p>You requested a password reset for your Saphul PMS account.</p>
+            <p>You requested a password reset for your SANE PMS account.</p>
             <p>Click the link below to reset your password:</p>
             <p><a href="{reset_url}">Reset Password</a></p>
             <p>This link will expire in 1 hour.</p>
             <p>If you didn't request this reset, please ignore this email.</p>
             <br>
-            <p>Best regards,<br>Saphul PMS Team</p>
+            <p>Best regards,<br>SANE Team</p>
         </body>
         </html>
         """
@@ -80,7 +80,7 @@ class EmailService:
             logger.warning(f"Password reset email failed for {user_email}")
 
     def send_task_assigned_email(self, user_email: str, user_name: str, task_title: str, task_id: int) -> None:
-        subject = "You have been assigned a new task - Saphul PMS"
+        subject = "You have been assigned a new task - SANE PMS"
         task_url = f"{FRONTEND_URL}/tasks/{task_id}"
         html_content = f"""
         <html>
@@ -91,7 +91,7 @@ class EmailService:
             <p><strong>{task_title}</strong></p>
             <p><a href="{task_url}">View Task</a></p>
             <br>
-            <p>Best regards,<br>Saphul PMS Team</p>
+            <p>Best regards,<br>SANE Team</p>
         </body>
         </html>
         """
@@ -99,7 +99,7 @@ class EmailService:
             logger.warning(f"Task assigned email failed for {user_email}")
 
     def send_task_approved_email(self, user_email: str, user_name: str, task_title: str, task_id: int) -> None:
-        subject = "Your task has been approved - Saphul PMS"
+        subject = "Your task has been approved - SANE PMS"
         task_url = f"{FRONTEND_URL}/tasks/{task_id}"
         html_content = f"""
         <html>
@@ -109,7 +109,7 @@ class EmailService:
             <p>Your task <strong>"{task_title}"</strong> has been approved.</p>
             <p><a href="{task_url}">View Task</a></p>
             <br>
-            <p>Best regards,<br>Saphul PMS Team</p>
+            <p>Best regards,<br>SANE Team</p>
         </body>
         </html>
         """
@@ -117,7 +117,7 @@ class EmailService:
             logger.warning(f"Task approved email failed for {user_email}")
 
     def send_task_rejected_email(self, user_email: str, user_name: str, task_title: str, task_id: int) -> None:
-        subject = "Your task needs rework - Saphul PMS"
+        subject = "Your task needs rework - SANE PMS"
         task_url = f"{FRONTEND_URL}/tasks/{task_id}"
         html_content = f"""
         <html>
@@ -128,7 +128,7 @@ class EmailService:
             <p>Please review the task and make the necessary changes.</p>
             <p><a href="{task_url}">View Task</a></p>
             <br>
-            <p>Best regards,<br>Saphul PMS Team</p>
+            <p>Best regards,<br>SANE Team</p>
         </body>
         </html>
         """
@@ -136,19 +136,19 @@ class EmailService:
             logger.warning(f"Task rejected email failed for {user_email}")
 
     def send_invite_email(self, email: str, token: str, name: str) -> None:
-        subject = "Invitation to join Saphul PMS"
+        subject = "Invitation to join SANE PMS"
         invite_url = f"{FRONTEND_URL}/accept-invite?token={token}"
         html_content = f"""
         <html>
         <body>
-            <h2>You're invited to join Saphul PMS</h2>
+            <h2>You're invited to join SANE PMS</h2>
             <p>Hello,</p>
-            <p>{name} has invited you to join Saphul PMS.</p>
+            <p>{name} has invited you to join SANE PMS.</p>
             <p>Click the link below to accept the invitation:</p>
             <p><a href="{invite_url}">Accept Invitation</a></p>
             <p>This invitation will expire in 7 days.</p>
             <br>
-            <p>Best regards,<br>Saphul PMS Team</p>
+            <p>Best regards,<br>SANE Team</p>
         </body>
         </html>
         """
