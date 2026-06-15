@@ -1,8 +1,12 @@
 import smtplib
 import logging
 import os
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+
+_email_executor = ThreadPoolExecutor(max_workers=2)
 
 logger = logging.getLogger(__name__)
 
@@ -14,8 +18,8 @@ SMTP_FROM = os.getenv("SMTP_FROM", SMTP_USER)
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://sane-sigma.vercel.app")
 
 
-def _send_email(to_email: str, subject: str, html_content: str) -> bool:
-    """Send email using SMTP. Returns True if successful."""
+def _send_email_sync(to_email: str, subject: str, html_content: str) -> bool:
+    """Synchronous SMTP send — run in a thread, never in the event loop directly."""
     if not SMTP_USER or not SMTP_PASS:
         logger.error("SMTP_USER or SMTP_PASS not set. Cannot send email.")
         return False
@@ -27,7 +31,7 @@ def _send_email(to_email: str, subject: str, html_content: str) -> bool:
         msg["To"] = to_email
         msg.attach(MIMEText(html_content, "html"))
 
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
             server.starttls()
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(SMTP_USER, to_email, msg.as_string())
@@ -37,6 +41,16 @@ def _send_email(to_email: str, subject: str, html_content: str) -> bool:
 
     except Exception as e:
         logger.error(f"Failed to send email to {to_email}: {str(e)}")
+        return False
+
+
+def _send_email(to_email: str, subject: str, html_content: str) -> bool:
+    """Fire-and-forget email in a background thread. Never blocks the caller."""
+    try:
+        _email_executor.submit(_send_email_sync, to_email, subject, html_content)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to queue email to {to_email}: {str(e)}")
         return False
 
 
