@@ -148,6 +148,21 @@ export const projectMembersAPI = {
     USE_MOCK_DATA ? mockAPI.projectMembers.remove(memberId) : api.delete(`/project-members/${memberId}`),
 };
 
+// Notifications API
+export const notificationsAPI = {
+  getAll: (params = {}) => {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== null && value !== undefined) queryParams.append(key, value);
+    });
+    return api.get(`/notifications/?${queryParams}`);
+  },
+  getUnreadCount: () => api.get("/notifications/unread-count"),
+  markAsRead: (id) => api.put(`/notifications/${id}/read`),
+  markAllAsRead: () => api.put("/notifications/read-all"),
+  delete: (id) => api.delete(`/notifications/${id}`),
+};
+
 // Tasks API
 export const tasksAPI = {
   getAll: (params = {}) => {
@@ -176,6 +191,7 @@ export const tasksAPI = {
     USE_MOCK_DATA ? mockAPI.tasks.reject(id) : api.post(`/tasks/${id}/reject`),
   delete: (id) =>
     USE_MOCK_DATA ? mockAPI.tasks.delete(id) : api.delete(`/tasks/${id}`),
+  getSubtasks: (taskId) => api.get(`/tasks/${taskId}/subtasks`),
 };
 
 // Project Files API (deprecated - use filesAPI instead)

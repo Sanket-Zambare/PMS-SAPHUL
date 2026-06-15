@@ -12,7 +12,7 @@ import Alert from "react-bootstrap/Alert";
 import ProgressBar from "react-bootstrap/ProgressBar";
 import { useAuth } from "../context/AuthContext";
 import { usePermissions } from "../hooks/usePermissions";
-import { tasksAPI, projectsAPI, usersAPI, projectMembersAPI } from "../services/api";
+import { tasksAPI, projectsAPI, usersAPI, projectMembersAPI, notificationsAPI } from "../services/api";
 import { PERMISSIONS, isClient } from "../utils/permissions";
 
 function TaskDetails() {
@@ -29,9 +29,19 @@ function TaskDetails() {
   const [editingTask, setEditingTask] = useState(null);
   const [error, setError] = useState("");
 
+  // Subtask state
+  const [subtasks, setSubtasks] = useState([]);
+  const [showSubtaskModal, setShowSubtaskModal] = useState(false);
+  const [editingSubtask, setEditingSubtask] = useState(null);
+  const [subtaskForm, setSubtaskForm] = useState({ title: "", description: "", assigned_to: "", status: "TODO" });
+
   useEffect(() => {
     fetchTaskDetails();
   }, [id]);
+
+  useEffect(() => {
+    if (task) fetchSubtasks();
+  }, [task?.id]);
 
   const fetchTaskDetails = async () => {
     try {
@@ -63,6 +73,68 @@ function TaskDetails() {
       setError(`Failed to load task details: ${error.response?.data?.detail || error.message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSubtasks = async () => {
+    try {
+      const res = await tasksAPI.getSubtasks(task.id);
+      setSubtasks(res.data || []);
+    } catch {
+      // subtasks section silently fails — non-critical
+    }
+  };
+
+  const openCreateSubtask = () => {
+    setEditingSubtask(null);
+    setSubtaskForm({ title: "", description: "", assigned_to: "", status: "TODO" });
+    setShowSubtaskModal(true);
+  };
+
+  const openEditSubtask = (subtask) => {
+    setEditingSubtask(subtask);
+    setSubtaskForm({
+      title: subtask.title,
+      description: subtask.description || "",
+      assigned_to: subtask.assigned_to || "",
+      status: subtask.status,
+    });
+    setShowSubtaskModal(true);
+  };
+
+  const handleSaveSubtask = async () => {
+    try {
+      if (editingSubtask) {
+        const res = await tasksAPI.update(editingSubtask.id, {
+          title: subtaskForm.title,
+          description: subtaskForm.description || null,
+          assigned_to: subtaskForm.assigned_to ? parseInt(subtaskForm.assigned_to) : null,
+          status: subtaskForm.status,
+        });
+        setSubtasks((prev) => prev.map((s) => (s.id === editingSubtask.id ? res.data : s)));
+      } else {
+        const res = await tasksAPI.create({
+          title: subtaskForm.title,
+          description: subtaskForm.description || null,
+          project_id: task.project_id,
+          parent_task_id: task.id,
+          assigned_to: subtaskForm.assigned_to ? parseInt(subtaskForm.assigned_to) : null,
+        });
+        setSubtasks((prev) => [...prev, res.data]);
+      }
+      setShowSubtaskModal(false);
+    } catch (err) {
+      setError(err.response?.data?.detail || "Failed to save subtask");
+    }
+  };
+
+  const handleDeleteSubtask = async (subtaskId) => {
+    if (!window.confirm("Delete this subtask?")) return;
+    try {
+      await tasksAPI.delete(subtaskId);
+      setSubtasks((prev) => prev.filter((s) => s.id !== subtaskId));
+    } catch (err) {
+      setError(err.response?.data?.detail || "Failed to delete subtask");
     }
   };
 
@@ -365,7 +437,7 @@ function TaskDetails() {
             </Card.Body>
           </Card>
 
-          <Card>
+          <Card className="mb-3">
             <Card.Header>
               <h5>Description</h5>
             </Card.Header>
@@ -374,6 +446,57 @@ function TaskDetails() {
                 <p style={{ whiteSpace: "pre-wrap" }}>{task.description}</p>
               ) : (
                 <p className="text-muted">No description provided.</p>
+              )}
+            </Card.Body>
+          </Card>
+
+          {/* Subtasks */}
+          <Card>
+            <Card.Header className="d-flex justify-content-between align-items-center">
+              <h5 className="mb-0">Subtasks ({subtasks.length})</h5>
+              {hasPermission(PERMISSIONS.TASK_CREATE) && (
+                <Button size="sm" variant="outline-primary" onClick={openCreateSubtask}>
+                  + Add Subtask
+                </Button>
+              )}
+            </Card.Header>
+            <Card.Body className="p-0">
+              {subtasks.length === 0 ? (
+                <p className="text-muted p-3 mb-0">No subtasks yet.</p>
+              ) : (
+                <ul className="list-group list-group-flush">
+                  {subtasks.map((sub) => (
+                    <li key={sub.id} className="list-group-item d-flex justify-content-between align-items-center">
+                      <div>
+                        <span
+                          className="fw-semibold"
+                          style={{ cursor: "pointer", color: "#0d6efd" }}
+                          onClick={() => navigate(`/tasks/${sub.id}`)}
+                        >
+                          {sub.title}
+                        </span>
+                        <Badge bg={getStatusVariant(sub.status)} className="ms-2" style={{ fontSize: "0.7rem" }}>
+                          {getStatusLabel(sub.status)}
+                        </Badge>
+                        {sub.assigned_to && (
+                          <small className="text-muted ms-2">— {getUserName(sub.assigned_to)}</small>
+                        )}
+                      </div>
+                      <div className="d-flex gap-2">
+                        {hasPermission(PERMISSIONS.TASK_EDIT) && (
+                          <Button size="sm" variant="outline-secondary" onClick={() => openEditSubtask(sub)}>
+                            Edit
+                          </Button>
+                        )}
+                        {hasPermission(PERMISSIONS.TASK_DELETE) && (
+                          <Button size="sm" variant="outline-danger" onClick={() => handleDeleteSubtask(sub.id)}>
+                            Delete
+                          </Button>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               )}
             </Card.Body>
           </Card>
@@ -412,6 +535,71 @@ function TaskDetails() {
           </Card>
         </Col>
       </Row>
+
+      {/* Subtask Modal */}
+      <Modal show={showSubtaskModal} onHide={() => setShowSubtaskModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>{editingSubtask ? "Edit Subtask" : "Add Subtask"}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Title <span className="text-danger">*</span></Form.Label>
+              <Form.Control
+                value={subtaskForm.title}
+                onChange={(e) => setSubtaskForm({ ...subtaskForm, title: e.target.value })}
+                placeholder="Subtask title"
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Description</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={2}
+                value={subtaskForm.description}
+                onChange={(e) => setSubtaskForm({ ...subtaskForm, description: e.target.value })}
+                placeholder="Optional description"
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Assign To</Form.Label>
+              <Form.Select
+                value={subtaskForm.assigned_to}
+                onChange={(e) => setSubtaskForm({ ...subtaskForm, assigned_to: e.target.value })}
+              >
+                <option value="">Unassigned</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+            {editingSubtask && (
+              <Form.Group className="mb-3">
+                <Form.Label>Status</Form.Label>
+                <Form.Select
+                  value={subtaskForm.status}
+                  onChange={(e) => setSubtaskForm({ ...subtaskForm, status: e.target.value })}
+                >
+                  <option value="TODO">Todo</option>
+                  <option value="IN_PROGRESS">In Progress</option>
+                  <option value="BLOCKED">Blocked</option>
+                  <option value="DONE">Done</option>
+                </Form.Select>
+              </Form.Group>
+            )}
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowSubtaskModal(false)}>Cancel</Button>
+          <Button
+            variant="primary"
+            onClick={handleSaveSubtask}
+            disabled={!subtaskForm.title.trim()}
+          >
+            {editingSubtask ? "Save Changes" : "Create Subtask"}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       {/* Edit Task Modal */}
       <Modal show={showEditModal} onHide={() => setShowEditModal(false)}>

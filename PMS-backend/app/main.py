@@ -22,6 +22,7 @@ from app.routes import (
     project_files,
     activity_logs,
     dashboard,
+    notifications,
 )
 import traceback
 import os
@@ -87,6 +88,7 @@ app.include_router(project_files)
 app.include_router(activity_logs)
 app.include_router(dashboard)
 app.include_router(invitations)
+app.include_router(notifications)
 
 # Exception handlers
 @app.exception_handler(Exception)

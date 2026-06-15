@@ -31,6 +31,13 @@ from app.models.user import User
 from app.services.activity_log_service import create_activity_log
 from app.models.activity_log import EntityType
 from app.services.permission_service import has_permission
+from app.services.notification_service import (
+    notify_task_assigned,
+    notify_task_approved,
+    notify_task_rejected,
+    notify_approval_requested,
+)
+from app.services.email_service import email_service
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
@@ -161,7 +168,17 @@ def create_task(
         )
     except Exception as e:
         pass
-    
+
+    # Notify assignee
+    if task.assigned_to and task.assigned_to != current_user.id:
+        try:
+            notify_task_assigned(db, task.assigned_to, task.title, task.id)
+            assignee = db.query(User).filter(User.id == task.assigned_to).first()
+            if assignee:
+                email_service.send_task_assigned_email(assignee.email, assignee.name, task.title, task.id)
+        except Exception:
+            pass
+
     return task
 
 @router.get("/", response_model=List[TaskResponse])
@@ -399,6 +416,8 @@ def update_task(
 
     # Track changes
     status_changed = 'status' in update_data and update_data['status'] != task.status
+    old_assignee = task.assigned_to
+    assignee_changed = 'assigned_to' in update_data and update_data['assigned_to'] != old_assignee
 
     # Update fields
     for field, value in update_data.items():
@@ -432,7 +451,17 @@ def update_task(
         )
     except Exception as e:
         pass
-    
+
+    # Notify new assignee if assignment changed
+    if assignee_changed and task.assigned_to and task.assigned_to != current_user.id:
+        try:
+            notify_task_assigned(db, task.assigned_to, task.title, task.id)
+            new_assignee = db.query(User).filter(User.id == task.assigned_to).first()
+            if new_assignee:
+                email_service.send_task_assigned_email(new_assignee.email, new_assignee.name, task.title, task.id)
+        except Exception:
+            pass
+
     return task
 
 @router.post("/{task_id}/request-approval", response_model=TaskResponse)
@@ -477,7 +506,7 @@ def request_task_approval(
     task.review_requested_at = datetime.utcnow()
     db.commit()
     db.refresh(task)
-    
+
     # Log activity
     try:
         create_activity_log(
@@ -489,7 +518,20 @@ def request_task_approval(
         )
     except Exception as e:
         print(f"Warning: Failed to log activity: {e}")
-    
+
+    # Notify project managers about approval request
+    try:
+        from app.models.project_member import ProjectMember, ProjectMemberRole
+        pms = db.query(ProjectMember).filter(
+            ProjectMember.project_id == task.project_id,
+            ProjectMember.role == ProjectMemberRole.PROJECT_MANAGER,
+            ProjectMember.is_deleted == False,
+        ).all()
+        for pm in pms:
+            notify_approval_requested(db, pm.user_id, task.title, task.id, current_user.name)
+    except Exception:
+        pass
+
     return task
 
 @router.post("/{task_id}/approve", response_model=TaskResponse)
@@ -529,7 +571,7 @@ def approve_task(
     task.reviewed_by = current_user.id
     db.commit()
     db.refresh(task)
-    
+
     # Log activity
     try:
         create_activity_log(
@@ -541,7 +583,17 @@ def approve_task(
         )
     except Exception as e:
         pass
-    
+
+    # Notify assignee
+    if task.assigned_to:
+        try:
+            notify_task_approved(db, task.assigned_to, task.title, task.id)
+            assignee = db.query(User).filter(User.id == task.assigned_to).first()
+            if assignee:
+                email_service.send_task_approved_email(assignee.email, assignee.name, task.title, task.id)
+        except Exception:
+            pass
+
     return task
 
 @router.post("/{task_id}/reject", response_model=TaskResponse)
@@ -574,7 +626,7 @@ def reject_task(
     task.reviewed_by = current_user.id
     db.commit()
     db.refresh(task)
-    
+
     # Log activity
     try:
         create_activity_log(
@@ -586,8 +638,39 @@ def reject_task(
         )
     except Exception as e:
         pass
-    
+
+    # Notify assignee
+    if task.assigned_to:
+        try:
+            notify_task_rejected(db, task.assigned_to, task.title, task.id)
+            assignee = db.query(User).filter(User.id == task.assigned_to).first()
+            if assignee:
+                email_service.send_task_rejected_email(assignee.email, assignee.name, task.title, task.id)
+        except Exception:
+            pass
+
     return task
+
+@router.get("/{task_id}/subtasks", response_model=List[TaskResponse])
+def get_subtasks(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get all subtasks for a given parent task."""
+    parent = db.query(Task).filter(Task.id == task_id, Task.is_deleted == False).first()
+    if not parent:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+
+    if not can_access_project(db, current_user.id, parent.project_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have access to this task")
+
+    subtasks = db.query(Task).filter(
+        Task.parent_task_id == task_id,
+        Task.is_deleted == False,
+    ).all()
+    return subtasks
+
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_task(

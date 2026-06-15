@@ -84,6 +84,65 @@ class EmailService:
         if not _send_email(user_email, subject, html_content):
             logger.warning(f"Password reset email failed for {user_email}")
 
+    def send_task_assigned_email(self, user_email: str, user_name: str, task_title: str, task_id: int) -> None:
+        """Send email when a task is assigned to a user."""
+        subject = "You have been assigned a new task - Saphul PMS"
+        task_url = f"{FRONTEND_URL}/tasks/{task_id}"
+        html_content = f"""
+        <html>
+        <body>
+            <h2>New Task Assigned</h2>
+            <p>Hello {user_name},</p>
+            <p>You have been assigned to the following task:</p>
+            <p><strong>{task_title}</strong></p>
+            <p><a href="{task_url}">View Task</a></p>
+            <br>
+            <p>Best regards,<br>Saphul PMS Team</p>
+        </body>
+        </html>
+        """
+        if not _send_email(user_email, subject, html_content):
+            logger.warning(f"Task assigned email failed for {user_email}")
+
+    def send_task_approved_email(self, user_email: str, user_name: str, task_title: str, task_id: int) -> None:
+        """Send email when a task is approved."""
+        subject = "Your task has been approved - Saphul PMS"
+        task_url = f"{FRONTEND_URL}/tasks/{task_id}"
+        html_content = f"""
+        <html>
+        <body>
+            <h2>Task Approved</h2>
+            <p>Hello {user_name},</p>
+            <p>Your task <strong>"{task_title}"</strong> has been approved.</p>
+            <p><a href="{task_url}">View Task</a></p>
+            <br>
+            <p>Best regards,<br>Saphul PMS Team</p>
+        </body>
+        </html>
+        """
+        if not _send_email(user_email, subject, html_content):
+            logger.warning(f"Task approved email failed for {user_email}")
+
+    def send_task_rejected_email(self, user_email: str, user_name: str, task_title: str, task_id: int) -> None:
+        """Send email when a task is rejected."""
+        subject = "Your task needs rework - Saphul PMS"
+        task_url = f"{FRONTEND_URL}/tasks/{task_id}"
+        html_content = f"""
+        <html>
+        <body>
+            <h2>Task Rejected</h2>
+            <p>Hello {user_name},</p>
+            <p>Your task <strong>"{task_title}"</strong> has been rejected and needs rework.</p>
+            <p>Please review the task and make the necessary changes.</p>
+            <p><a href="{task_url}">View Task</a></p>
+            <br>
+            <p>Best regards,<br>Saphul PMS Team</p>
+        </body>
+        </html>
+        """
+        if not _send_email(user_email, subject, html_content):
+            logger.warning(f"Task rejected email failed for {user_email}")
+
     def send_invite_email(self, email: str, token: str, name: str) -> None:
         """Send client invitation email."""
         subject = "Invitation to join Saphul PMS"
