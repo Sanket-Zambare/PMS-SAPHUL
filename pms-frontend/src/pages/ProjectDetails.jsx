@@ -111,26 +111,30 @@ function ProjectDetails() {
     }
   };
 
+  const parseApiError = (error, fallback) => {
+    const detail = error.response?.data?.detail;
+    if (!detail) return fallback;
+    if (Array.isArray(detail)) return detail.map((e) => e.msg || JSON.stringify(e)).join(", ");
+    if (typeof detail === "string") return detail;
+    return fallback;
+  };
+
   const handleAddTask = async () => {
     try {
       const taskData = {
-        ...newTask,
+        title: newTask.title,
+        description: newTask.description || null,
         project_id: projectId,
         assigned_to: newTask.assigned_to ? parseInt(newTask.assigned_to) : null,
-        due_date: newTask.due_date || null,
+        due_date: newTask.due_date ? newTask.due_date.split("T")[0] : null,
       };
       const response = await tasksAPI.create(taskData);
       setTasks([...tasks, response.data]);
-      setNewTask({
-        title: "",
-        description: "",
-        assigned_to: "",
-        due_date: "",
-      });
+      setNewTask({ title: "", description: "", assigned_to: "", due_date: "" });
       setShowAddTaskModal(false);
-      fetchProjectData(); // Refresh stats
+      fetchProjectData();
     } catch (error) {
-      setError(error.response?.data?.detail || "Failed to create task");
+      setError(parseApiError(error, "Failed to create task"));
     }
   };
 
@@ -138,9 +142,9 @@ function ProjectDetails() {
     try {
       const response = await tasksAPI.update(taskId, updates);
       setTasks(tasks.map((t) => (t.id === taskId ? response.data : t)));
-      fetchProjectData(); // Refresh stats
+      fetchProjectData();
     } catch (error) {
-      setError(error.response?.data?.detail || "Failed to update task");
+      setError(parseApiError(error, "Failed to update task"));
     }
   };
 
@@ -618,7 +622,7 @@ function ProjectDetails() {
             <Form.Group>
               <Form.Label>Due Date</Form.Label>
               <Form.Control
-                type="datetime-local"
+                type="date"
                 value={newTask.due_date}
                 onChange={(e) =>
                   setNewTask({ ...newTask, due_date: e.target.value })
@@ -685,9 +689,11 @@ function ProjectDetails() {
                     setEditingTask({ ...editingTask, status: e.target.value })
                   }
                 >
-                  <option value="PENDING">Pending</option>
+                  <option value="TODO">Todo</option>
                   <option value="IN_PROGRESS">In Progress</option>
-                  <option value="COMPLETED">Completed</option>
+                  <option value="BLOCKED">Blocked</option>
+                  <option value="DONE">Done</option>
+                  <option value="CANCELLED">Cancelled</option>
                 </Form.Select>
               </Form.Group>
               <Form.Group className="mb-3">
@@ -709,8 +715,8 @@ function ProjectDetails() {
               <Form.Group>
                 <Form.Label>Due Date</Form.Label>
                 <Form.Control
-                  type="datetime-local"
-                  value={editingTask.due_date}
+                  type="date"
+                  value={editingTask.due_date ? editingTask.due_date.split("T")[0] : ""}
                   onChange={(e) =>
                     setEditingTask({ ...editingTask, due_date: e.target.value })
                   }
@@ -731,7 +737,7 @@ function ProjectDetails() {
                 description: editingTask.description,
                 status: editingTask.status,
                 progress: editingTask.progress,
-                due_date: editingTask.due_date || null,
+                due_date: editingTask.due_date ? editingTask.due_date.split("T")[0] : null,
               });
               setShowEditTaskModal(false);
             }}
