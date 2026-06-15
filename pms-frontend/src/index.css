@@ -847,6 +847,20 @@ button {
 }
 
 /* ===== Extra small (≤ 480px): phones ===== */
+/* Dashboard overview panels */
+.dashboard-overview {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 768px) {
+  .dashboard-overview {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 480px) {
   .metric-grid {
     grid-template-columns: 1fr;

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Container from "react-bootstrap/Container";
 import Table from "react-bootstrap/Table";
 import Badge from "react-bootstrap/Badge";
@@ -14,6 +15,7 @@ import { PERMISSIONS, isClient } from "../utils/permissions";
 function Users() {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [projects, setProjects] = useState([]);
   const [userProjects, setUserProjects] = useState({}); // userId -> array of project assignments
@@ -235,12 +237,44 @@ function Users() {
 
   const canManageRoles = hasPermission(PERMISSIONS.USER_MANAGE_ROLES);
 
+  const totalUsers = users.length;
+  const activeUsers = users.filter((u) => u.status === "ACTIVE").length;
+  const pmCount = users.filter((u) => getPrimaryRole(u) === "PROJECT_MANAGER").length;
+  const adminCount = users.filter((u) => getPrimaryRole(u) === "ADMIN").length;
+
   return (
     <Container fluid className="mt-3">
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
           <h1>Users</h1>
-          <p className="text-muted">Admin can manage roles</p>
+          <p className="text-muted">Admin can manage users, roles and project assignments</p>
+        </div>
+        {canManageRoles && !isClient(user) && (
+          <Button variant="primary" onClick={() => navigate("/users")}>+ Add User</Button>
+        )}
+      </div>
+
+      {/* Stats Cards */}
+      <div className="metric-grid mb-4">
+        <div className="metric-card text-start" style={{ cursor: "default" }}>
+          <p className="metric-label">Total Users</p>
+          <div className="metric-value">{totalUsers}</div>
+          <p className="metric-note">All registered users</p>
+        </div>
+        <div className="metric-card text-start" style={{ cursor: "default" }}>
+          <p className="metric-label">Active Users</p>
+          <div className="metric-value" style={{ color: "#1f6a45" }}>{activeUsers}</div>
+          <p className="metric-note">Currently active</p>
+        </div>
+        <div className="metric-card text-start" style={{ cursor: "default" }}>
+          <p className="metric-label">Project Managers</p>
+          <div className="metric-value" style={{ color: "#8a5a00" }}>{pmCount}</div>
+          <p className="metric-note">Manage projects</p>
+        </div>
+        <div className="metric-card text-start" style={{ cursor: "default" }}>
+          <p className="metric-label">Admins</p>
+          <div className="metric-value" style={{ color: "#E8640A" }}>{adminCount}</div>
+          <p className="metric-note">System administrators</p>
         </div>
       </div>
 

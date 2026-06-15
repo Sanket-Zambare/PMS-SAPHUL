@@ -240,35 +240,20 @@ function Projects() {
 
       {/* Status Filter Buttons */}
       <div className="segment-group mb-4">
-        <Button
-          variant={statusFilter === null ? "primary" : "outline-primary"}
-          onClick={() => setStatusFilter(null)}
-        >
-          All Projects
+        <Button variant={statusFilter === null ? "primary" : "outline-primary"} onClick={() => setStatusFilter(null)}>
+          All Projects <span style={{ background: "rgba(255,255,255,0.25)", borderRadius: "99px", padding: "1px 7px", fontSize: "12px", marginLeft: "4px" }}>{projects.length}</span>
         </Button>
-        <Button
-          variant={statusFilter === "PENDING" ? "primary" : "outline-secondary"}
-          onClick={() => setStatusFilter("PENDING")}
-        >
-          Pending
+        <Button variant={statusFilter === "PENDING" ? "primary" : "outline-secondary"} onClick={() => setStatusFilter("PENDING")}>
+          Pending <span style={{ background: "rgba(255,255,255,0.25)", borderRadius: "99px", padding: "1px 7px", fontSize: "12px", marginLeft: "4px" }}>{projects.filter(p => p.status === "PENDING").length}</span>
         </Button>
-        <Button
-          variant={statusFilter === "IN_PROGRESS" ? "primary" : "outline-warning"}
-          onClick={() => setStatusFilter("IN_PROGRESS")}
-        >
-          In Progress
+        <Button variant={statusFilter === "IN_PROGRESS" ? "primary" : "outline-warning"} onClick={() => setStatusFilter("IN_PROGRESS")}>
+          In Progress <span style={{ background: "rgba(255,255,255,0.25)", borderRadius: "99px", padding: "1px 7px", fontSize: "12px", marginLeft: "4px" }}>{projects.filter(p => p.status === "IN_PROGRESS").length}</span>
         </Button>
-        <Button
-          variant={statusFilter === "COMPLETED" ? "primary" : "outline-success"}
-          onClick={() => setStatusFilter("COMPLETED")}
-        >
-          Completed
+        <Button variant={statusFilter === "COMPLETED" ? "primary" : "outline-success"} onClick={() => setStatusFilter("COMPLETED")}>
+          Completed <span style={{ background: "rgba(255,255,255,0.25)", borderRadius: "99px", padding: "1px 7px", fontSize: "12px", marginLeft: "4px" }}>{projects.filter(p => p.status === "COMPLETED").length}</span>
         </Button>
-        <Button
-          variant={statusFilter === "DELAYED" ? "primary" : "outline-danger"}
-          onClick={() => setStatusFilter("DELAYED")}
-        >
-          Delayed
+        <Button variant={statusFilter === "DELAYED" ? "primary" : "outline-danger"} onClick={() => setStatusFilter("DELAYED")}>
+          Delayed <span style={{ background: "rgba(255,255,255,0.25)", borderRadius: "99px", padding: "1px 7px", fontSize: "12px", marginLeft: "4px" }}>{projects.filter(p => p.status === "DELAYED").length}</span>
         </Button>
       </div>
 

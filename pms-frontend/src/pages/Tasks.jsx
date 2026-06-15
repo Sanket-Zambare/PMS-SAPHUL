@@ -423,32 +423,17 @@ function Tasks() {
 
       {/* Status Filter Buttons */}
       <div className="segment-group mb-3">
-        <Button
-          variant={statusFilter === null ? "primary" : "outline-primary"}
-          className="me-2"
-          onClick={() => setStatusFilter(null)}
-        >
-          All Tasks
+        <Button variant={statusFilter === null ? "primary" : "outline-primary"} onClick={() => setStatusFilter(null)}>
+          All Tasks <span style={{ background: "rgba(255,255,255,0.25)", borderRadius: "99px", padding: "1px 7px", fontSize: "12px", marginLeft: "4px" }}>{tasks.length}</span>
         </Button>
-        <Button
-          variant={statusFilter === "TODO" ? "primary" : "outline-secondary"}
-          className="me-2"
-          onClick={() => setStatusFilter("TODO")}
-        >
-          Todo
+        <Button variant={statusFilter === "TODO" ? "primary" : "outline-secondary"} onClick={() => setStatusFilter("TODO")}>
+          Todo <span style={{ background: "rgba(255,255,255,0.25)", borderRadius: "99px", padding: "1px 7px", fontSize: "12px", marginLeft: "4px" }}>{tasks.filter(t => t.status === "TODO").length}</span>
         </Button>
-        <Button
-          variant={statusFilter === "IN_PROGRESS" ? "primary" : "outline-warning"}
-          className="me-2"
-          onClick={() => setStatusFilter("IN_PROGRESS")}
-        >
-          In Progress
+        <Button variant={statusFilter === "IN_PROGRESS" ? "primary" : "outline-warning"} onClick={() => setStatusFilter("IN_PROGRESS")}>
+          In Progress <span style={{ background: "rgba(255,255,255,0.25)", borderRadius: "99px", padding: "1px 7px", fontSize: "12px", marginLeft: "4px" }}>{tasks.filter(t => t.status === "IN_PROGRESS").length}</span>
         </Button>
-        <Button
-          variant={statusFilter === "DONE" ? "primary" : "outline-success"}
-          onClick={() => setStatusFilter("DONE")}
-        >
-          Done
+        <Button variant={statusFilter === "DONE" ? "primary" : "outline-success"} onClick={() => setStatusFilter("DONE")}>
+          Done <span style={{ background: "rgba(255,255,255,0.25)", borderRadius: "99px", padding: "1px 7px", fontSize: "12px", marginLeft: "4px" }}>{tasks.filter(t => t.status === "DONE").length}</span>
         </Button>
       </div>
 

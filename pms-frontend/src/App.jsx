@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from "react-router-dom";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Sidebars from "./components/Sidebars";
@@ -123,6 +124,7 @@ function App() {
     return (
       <AuthProvider>
         <AppRoutes />
+        <SpeedInsights />
       </AuthProvider>
     );
   } catch (error) {
