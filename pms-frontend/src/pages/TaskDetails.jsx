@@ -439,6 +439,11 @@ function TaskDetails() {
                 </Col>
                 <Col md={6}>
                   <strong>Progress:</strong> {parseFloat(task.progress).toFixed(0)}%
+                  {subtasks.length > 0 && (
+                    <span style={{ marginLeft: 8, fontSize: 12, color: "#888" }}>
+                      ({subtasks.filter(s => s.status === "DONE").length}/{subtasks.length} subtasks done)
+                    </span>
+                  )}
                 </Col>
               </Row>
               <Row className="mb-3">
@@ -525,7 +530,13 @@ function TaskDetails() {
                 now={isNaN(task.progress) ? 0 : parseFloat(task.progress)}
                 label={`${(isNaN(task.progress) ? 0 : parseFloat(task.progress)).toFixed(0)}%`}
                 className="mb-3"
+                variant={parseFloat(task.progress) === 100 ? "success" : parseFloat(task.progress) >= 50 ? "warning" : undefined}
               />
+              {subtasks.length > 0 && (
+                <div style={{ fontSize: 12, color: "#888", marginTop: -8, marginBottom: 12 }}>
+                  Auto-calculated from subtasks · {subtasks.filter(s => s.status === "DONE").length} of {subtasks.length} completed
+                </div>
+              )}
               <Row className="mb-3">
                 <Col md={6}>
                   <strong>Project:</strong>{" "}
@@ -923,14 +934,10 @@ function TaskDetails() {
                   onChange={(e) => {
                     const newStatus = e.target.value;
                     let newProgress = editingTask.progress;
-                    if (hasPermission(PERMISSIONS.TASK_EDIT)) {
-                      if (newStatus === "DONE") {
-                        newProgress = 100;
-                      } else if (newStatus === "TODO") {
-                        newProgress = 0;
-                      } else if (newStatus === "IN_PROGRESS" && editingTask.progress === 0) {
-                        newProgress = 50; // default to 50 if was 0
-                      }
+                    // Only snap for leaf tasks (no subtasks); subtask tasks auto-calculated server-side
+                    if (subtasks.length === 0) {
+                      if (newStatus === "DONE") newProgress = 100;
+                      else if (newStatus === "TODO") newProgress = 0;
                     }
                     setEditingTask({ ...editingTask, status: newStatus, progress: newProgress });
                   }}
@@ -980,19 +987,25 @@ function TaskDetails() {
               {hasPermission(PERMISSIONS.TASK_EDIT) && (
                 <Form.Group className="mb-3">
                   <Form.Label>Progress (%)</Form.Label>
-                  <Form.Control
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="1"
-                    value={editingTask.progress}
-                    onChange={(e) =>
-                      setEditingTask({
-                        ...editingTask,
-                        progress: parseFloat(e.target.value) || 0,
-                      })
-                    }
-                  />
+                  {subtasks.length > 0 ? (
+                    <div style={{ fontSize: 13, color: "#888", padding: "6px 0" }}>
+                      <strong>{parseFloat(editingTask.progress).toFixed(0)}%</strong> — auto-calculated from subtasks ({subtasks.filter(s => s.status === "DONE").length}/{subtasks.length} done). Update individual subtasks to change this.
+                    </div>
+                  ) : (
+                    <Form.Control
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={editingTask.progress}
+                      onChange={(e) =>
+                        setEditingTask({
+                          ...editingTask,
+                          progress: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                    />
+                  )}
                 </Form.Group>
               )}
             </Form>
