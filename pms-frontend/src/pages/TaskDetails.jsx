@@ -225,17 +225,20 @@ function TaskDetails() {
     try {
       // For users without TASK_EDIT permission, only send status update
       const canEditAll = hasPermission(PERMISSIONS.TASK_EDIT);
+      const isBlocked = editingTask.status === "BLOCKED";
       const updateData = canEditAll
         ? {
             title: editingTask.title,
             description: editingTask.description,
             status: editingTask.status,
             progress: editingTask.progress,
-            blocker_reason: editingTask.status === "BLOCKED" ? (editingTask.blocker_reason || null) : null,
+            blocker_reason: isBlocked ? (editingTask.blocker_reason || null) : null,
+            blocked_by_user_id: isBlocked ? (editingTask.blocked_by_user_id || null) : null,
           }
         : {
             status: editingTask.status,
-            blocker_reason: editingTask.status === "BLOCKED" ? (editingTask.blocker_reason || null) : null,
+            blocker_reason: isBlocked ? (editingTask.blocker_reason || null) : null,
+            blocked_by_user_id: isBlocked ? (editingTask.blocked_by_user_id || null) : null,
           };
 
       const response = await tasksAPI.update(task.id, updateData);
@@ -452,15 +455,35 @@ function TaskDetails() {
                   </Badge>
                 </Col>
               </Row>
-              {task.status === "BLOCKED" && task.blocker_reason && (
+              {task.status === "BLOCKED" && (task.blocker_reason || task.blocked_by_user_id) && (
                 <Row className="mb-3">
                   <Col md={12}>
                     <div style={{
                       background: "#fee2e2", border: "1px solid #fca5a5",
-                      borderRadius: 8, padding: "10px 14px",
+                      borderRadius: 8, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 4,
                     }}>
-                      <strong style={{ color: "#dc2626" }}>Blocker:</strong>{" "}
-                      <span style={{ color: "#7f1d1d", fontSize: 14 }}>{task.blocker_reason}</span>
+                      <div style={{ fontWeight: 800, color: "#dc2626", fontSize: 13, letterSpacing: 0.5 }}>
+                        BLOCKED
+                      </div>
+                      {task.blocked_by_user_id && (() => {
+                        const blocker = users.find((u) => u.id === task.blocked_by_user_id);
+                        return blocker ? (
+                          <div style={{ fontSize: 14, color: "#7f1d1d" }}>
+                            <strong>Waiting on:</strong>{" "}
+                            <span style={{
+                              background: "#dc2626", color: "#fff", borderRadius: 20,
+                              padding: "1px 10px", fontWeight: 700, fontSize: 13,
+                            }}>
+                              {blocker.name}
+                            </span>
+                          </div>
+                        ) : null;
+                      })()}
+                      {task.blocker_reason && (
+                        <div style={{ fontSize: 14, color: "#7f1d1d" }}>
+                          <strong>Reason:</strong> {task.blocker_reason}
+                        </div>
+                      )}
                     </div>
                   </Col>
                 </Row>
@@ -920,22 +943,39 @@ function TaskDetails() {
                 </Form.Select>
               </Form.Group>
               {editingTask?.status === "BLOCKED" && (
-                <Form.Group className="mb-3">
-                  <Form.Label>
-                    Blocker Reason <span style={{ color: "#dc2626", fontWeight: 700 }}>*</span>
-                  </Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={2}
-                    placeholder="What is blocking this task? (e.g. waiting on API credentials from client)"
-                    value={editingTask.blocker_reason || ""}
-                    onChange={(e) => setEditingTask({ ...editingTask, blocker_reason: e.target.value })}
-                    style={{ borderColor: "#dc2626" }}
-                  />
-                  <Form.Text className="text-muted">
-                    Assignee and task creator will be notified with this reason.
-                  </Form.Text>
-                </Form.Group>
+                <div style={{ background: "#fff5f5", border: "1px solid #fca5a5", borderRadius: 8, padding: "14px 14px 4px", marginBottom: 12 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: "#dc2626", marginBottom: 10 }}>
+                    Blocker Details
+                  </div>
+                  <Form.Group className="mb-3">
+                    <Form.Label style={{ fontSize: 13 }}>Blocked by (person)</Form.Label>
+                    <Form.Select
+                      value={editingTask.blocked_by_user_id || ""}
+                      onChange={(e) => setEditingTask({ ...editingTask, blocked_by_user_id: e.target.value ? parseInt(e.target.value) : null })}
+                    >
+                      <option value="">— Select who is blocking this task —</option>
+                      {users.filter((u) => u.id !== user?.id).map((u) => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                      ))}
+                    </Form.Select>
+                    <Form.Text className="text-muted">
+                      That person will get a notification saying the task is waiting on them.
+                    </Form.Text>
+                  </Form.Group>
+                  <Form.Group className="mb-3">
+                    <Form.Label style={{ fontSize: 13 }}>Reason for block</Form.Label>
+                    <Form.Control
+                      as="textarea"
+                      rows={2}
+                      placeholder="e.g. Waiting for API credentials from client, design approval pending..."
+                      value={editingTask.blocker_reason || ""}
+                      onChange={(e) => setEditingTask({ ...editingTask, blocker_reason: e.target.value })}
+                    />
+                    <Form.Text className="text-muted">
+                      Assignee and creator will also be notified.
+                    </Form.Text>
+                  </Form.Group>
+                </div>
               )}
               {hasPermission(PERMISSIONS.TASK_EDIT) && (
                 <Form.Group className="mb-3">
