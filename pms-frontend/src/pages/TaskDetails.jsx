@@ -14,6 +14,7 @@ import { useAuth } from "../context/AuthContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { tasksAPI, projectsAPI, usersAPI, projectMembersAPI, notificationsAPI, commentsAPI, activityLogsAPI } from "../services/api";
 import { PERMISSIONS, isClient } from "../utils/permissions";
+import MentionTextarea from "../components/MentionTextarea";
 
 function TaskDetails() {
   const { id } = useParams();
@@ -230,8 +231,12 @@ function TaskDetails() {
             description: editingTask.description,
             status: editingTask.status,
             progress: editingTask.progress,
+            blocker_reason: editingTask.status === "BLOCKED" ? (editingTask.blocker_reason || null) : null,
           }
-        : { status: editingTask.status };
+        : {
+            status: editingTask.status,
+            blocker_reason: editingTask.status === "BLOCKED" ? (editingTask.blocker_reason || null) : null,
+          };
 
       const response = await tasksAPI.update(task.id, updateData);
       setTask(response.data);
@@ -308,6 +313,15 @@ function TaskDetails() {
     }
   };
 
+  const handleToggleUrgent = async () => {
+    try {
+      const response = await tasksAPI.toggleUrgent(task.id);
+      setTask(response.data);
+    } catch (error) {
+      setError(error.response?.data?.detail || "Failed to toggle urgent flag");
+    }
+  };
+
   const getStatusVariant = (status) => {
     if (status === "DONE") return "success";
     if (status === "IN_PROGRESS") return "warning";
@@ -378,7 +392,18 @@ function TaskDetails() {
           <Button variant="outline-secondary" onClick={() => navigate("/tasks")}>
             ← Back to Tasks
           </Button>
-          <h2 className="mt-2">{task.title}</h2>
+          <h2 className="mt-2">
+            {task.is_urgent && (
+              <span style={{
+                background: "#dc2626", color: "#fff", fontWeight: 800, fontSize: 13,
+                borderRadius: 4, padding: "2px 8px", marginRight: 10, letterSpacing: 1,
+                verticalAlign: "middle",
+              }}>
+                URGENT
+              </span>
+            )}
+            {task.title}
+          </h2>
         </div>
         <div>
           {(hasPermission(PERMISSIONS.TASK_DELETE)) && (
@@ -427,6 +452,19 @@ function TaskDetails() {
                   </Badge>
                 </Col>
               </Row>
+              {task.status === "BLOCKED" && task.blocker_reason && (
+                <Row className="mb-3">
+                  <Col md={12}>
+                    <div style={{
+                      background: "#fee2e2", border: "1px solid #fca5a5",
+                      borderRadius: 8, padding: "10px 14px",
+                    }}>
+                      <strong style={{ color: "#dc2626" }}>Blocker:</strong>{" "}
+                      <span style={{ color: "#7f1d1d", fontSize: 14 }}>{task.blocker_reason}</span>
+                    </div>
+                  </Col>
+                </Row>
+              )}
               {task.review_requested_at && (
                 <Row className="mb-3">
                   <Col md={6}>
@@ -645,13 +683,12 @@ function TaskDetails() {
               </div>
               {/* Post comment */}
               <div style={{ display: "flex", gap: "8px" }}>
-                <Form.Control
-                  as="textarea"
-                  rows={2}
-                  placeholder="Write a comment..."
+                <MentionTextarea
                   value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  style={{ fontSize: "0.84rem", resize: "none" }}
+                  onChange={setCommentText}
+                  users={users}
+                  placeholder="Write a comment... Type @ to mention someone"
+                  rows={2}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handlePostComment();
                   }}
@@ -665,7 +702,7 @@ function TaskDetails() {
                   {commentLoading ? "..." : "Post"}
                 </Button>
               </div>
-              <small className="text-muted">Ctrl+Enter to post</small>
+              <small className="text-muted">Ctrl+Enter to post · Type @ to mention</small>
             </Card.Body>
           </Card>
         </Col>
@@ -701,6 +738,14 @@ function TaskDetails() {
                 {hasPermission(PERMISSIONS.TASK_DELETE) && (
                   <Button variant="outline-danger" onClick={handleDeleteTask}>
                     Delete Task
+                  </Button>
+                )}
+                {user?.role === "ADMIN" && (
+                  <Button
+                    variant={task.is_urgent ? "danger" : "outline-warning"}
+                    onClick={handleToggleUrgent}
+                  >
+                    {task.is_urgent ? "URGENT — Click to Clear" : "Mark as Urgent"}
                   </Button>
                 )}
                 <Button
@@ -874,6 +919,24 @@ function TaskDetails() {
                   {hasPermission(PERMISSIONS.TASK_EDIT) && <option value="CANCELLED">Cancelled</option>}
                 </Form.Select>
               </Form.Group>
+              {editingTask?.status === "BLOCKED" && (
+                <Form.Group className="mb-3">
+                  <Form.Label>
+                    Blocker Reason <span style={{ color: "#dc2626", fontWeight: 700 }}>*</span>
+                  </Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    placeholder="What is blocking this task? (e.g. waiting on API credentials from client)"
+                    value={editingTask.blocker_reason || ""}
+                    onChange={(e) => setEditingTask({ ...editingTask, blocker_reason: e.target.value })}
+                    style={{ borderColor: "#dc2626" }}
+                  />
+                  <Form.Text className="text-muted">
+                    Assignee and task creator will be notified with this reason.
+                  </Form.Text>
+                </Form.Group>
+              )}
               {hasPermission(PERMISSIONS.TASK_EDIT) && (
                 <Form.Group className="mb-3">
                   <Form.Label>Progress (%)</Form.Label>

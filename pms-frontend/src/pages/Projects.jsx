@@ -12,6 +12,7 @@ import { useAuth } from "../context/AuthContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { projectsAPI, usersAPI, projectMembersAPI } from "../services/api";
 import { PERMISSIONS, isClient } from "../utils/permissions";
+import ImportModal from "../components/ImportModal";
 
 function Projects() {
   const { user } = useAuth();
@@ -19,6 +20,7 @@ function Projects() {
   const navigate = useNavigate();
 
 
+  const [showImportModal, setShowImportModal] = useState(false);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -217,7 +219,10 @@ function Projects() {
           <p className="page-description">All active and completed project spaces.</p>
         </div>
         {hasPermission(PERMISSIONS.PROJECT_CREATE) && !isClient(user) && (
-          <Button onClick={() => setShowAddModal(true)}>Add Project</Button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button variant="outline-secondary" onClick={() => setShowImportModal(true)}>Import Excel</Button>
+            <Button onClick={() => setShowAddModal(true)}>Add Project</Button>
+          </div>
         )}
       </div>
 
@@ -641,6 +646,13 @@ function Projects() {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <ImportModal
+        show={showImportModal}
+        onHide={() => setShowImportModal(false)}
+        type="projects"
+        onSuccess={() => { setShowImportModal(false); fetchProjects(); }}
+      />
     </Container>
   );
 }

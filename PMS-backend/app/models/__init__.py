@@ -15,6 +15,7 @@ from app.models.approval import Approval, ApprovalEntityType, ApprovalStatus as 
 from app.models.project_task_stats import ProjectTaskStats
 from app.models.notification import Notification
 from app.models.task_comment import TaskComment
+from app.models.meeting import Meeting, MeetingAttendee
 
 __all__ = [
     "Base",
@@ -46,4 +47,6 @@ __all__ = [
     "ProjectTaskStats",
     "Notification",
     "TaskComment",
+    "Meeting",
+    "MeetingAttendee",
 ]

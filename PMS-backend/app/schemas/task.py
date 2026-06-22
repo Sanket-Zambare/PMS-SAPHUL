@@ -40,6 +40,7 @@ class TaskUpdate(BaseModel):
     progress: Optional[Decimal] = None
     billable: Optional[bool] = None
     billing_rate: Optional[Decimal] = None
+    blocker_reason: Optional[str] = None
 
 class TaskResponse(TaskBase):
     id: int
@@ -49,6 +50,8 @@ class TaskResponse(TaskBase):
     approval_status: TaskApprovalStatus
     actual_hours: Optional[Decimal] = None
     progress: Decimal
+    is_urgent: bool = False
+    blocker_reason: Optional[str] = None
     review_requested_at: Optional[datetime] = None
     reviewed_at: Optional[datetime] = None
     reviewed_by: Optional[int] = None

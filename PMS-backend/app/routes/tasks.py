@@ -493,6 +493,34 @@ def update_task(
         except Exception:
             pass
 
+    # Notify assignee when task is set to BLOCKED
+    if status_changed and task.status == TaskStatus.BLOCKED:
+        try:
+            from app.services.notification_service import create_notification
+            reason_text = f" Reason: {task.blocker_reason}" if task.blocker_reason else ""
+            # Notify assignee
+            if task.assigned_to and task.assigned_to != current_user.id:
+                create_notification(
+                    db=db,
+                    user_id=task.assigned_to,
+                    title="Your task is BLOCKED",
+                    message=f'Task "{task.title}" has been marked as BLOCKED by {current_user.name}.{reason_text}',
+                    entity_type="TASK",
+                    entity_id=task.id,
+                )
+            # Notify task creator if different from who blocked it
+            if task.created_by and task.created_by != current_user.id:
+                create_notification(
+                    db=db,
+                    user_id=task.created_by,
+                    title="Task blocked",
+                    message=f'Task "{task.title}" was marked BLOCKED by {current_user.name}.{reason_text}',
+                    entity_type="TASK",
+                    entity_id=task.id,
+                )
+        except Exception:
+            pass
+
     return task
 
 @router.post("/{task_id}/request-approval", response_model=TaskResponse)
@@ -823,6 +851,28 @@ def create_comment(
     db.commit()
     db.refresh(comment)
 
+    # Detect @mentions and notify mentioned users
+    import re
+    from app.services.notification_service import create_notification
+    mentioned_names = re.findall(r"@([\w\s]+?)(?=\s@|\s*$|[,\.!?])", body.content)
+    for name in mentioned_names:
+        name = name.strip()
+        if not name:
+            continue
+        mentioned_user = db.query(User).filter(
+            User.name.ilike(name), User.id != current_user.id
+        ).first()
+        if mentioned_user:
+            task_title = db.query(Task).filter(Task.id == task_id).first()
+            create_notification(
+                db=db,
+                user_id=mentioned_user.id,
+                title=f"{current_user.name} mentioned you",
+                message=f'In task "{task_title.title if task_title else ""}": {body.content[:120]}',
+                entity_type="TASK",
+                entity_id=task_id,
+            )
+
     return CommentResponse(
         id=comment.id, task_id=comment.task_id, user_id=comment.user_id,
         content=comment.content, created_at=comment.created_at, updated_at=comment.updated_at,
@@ -886,3 +936,39 @@ def delete_comment(
     comment.is_deleted = True
     db.commit()
     return None
+
+
+@router.post("/{task_id}/toggle-urgent", response_model=TaskResponse)
+def toggle_urgent(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Admin-only: toggle the urgent flag on a task. Notifies all project members."""
+    if not is_admin(db, current_user.id):
+        raise HTTPException(status_code=403, detail="Only admins can mark tasks urgent")
+
+    task = db.query(Task).filter(Task.id == task_id, Task.is_deleted == False).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    task.is_urgent = not task.is_urgent
+    db.commit()
+    db.refresh(task)
+
+    if task.is_urgent:
+        from app.models.project_member import ProjectMember
+        from app.services.notification_service import create_notification
+        members = db.query(ProjectMember).filter(ProjectMember.project_id == task.project_id).all()
+        for m in members:
+            if m.user_id != current_user.id:
+                create_notification(
+                    db=db,
+                    user_id=m.user_id,
+                    title="URGENT TASK",
+                    message=f'Task "{task.title}" has been marked URGENT by {current_user.name}.',
+                    entity_type="TASK",
+                    entity_id=task.id,
+                )
+
+    return task

@@ -20,10 +20,13 @@ import ProjectDetails from "./pages/ProjectDetails";
 import Tasks from "./pages/Tasks";
 import TaskDetails from "./pages/TaskDetails";
 import Users from "./pages/Users";
+import CalendarPage from "./pages/CalendarPage";
+import { useUrgentAlert } from "./hooks/useUrgentAlert";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  useUrgentAlert();
   return (
     <div className="app-shell">
       {/* Mobile top bar — hidden on desktop via CSS */}
@@ -111,6 +114,7 @@ function AppRoutes() {
           <Route path="projects/:id" element={<ProjectDetails />} />
           <Route path="tasks" element={<Tasks />} />
           <Route path="tasks/:id" element={<TaskDetails />} />
+          <Route path="calendar" element={<CalendarPage />} />
           <Route path="users" element={<Users />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

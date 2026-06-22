@@ -11,6 +11,7 @@ import { usePermissions } from "../hooks/usePermissions";
 import { tasksAPI, projectsAPI, usersAPI, projectMembersAPI } from "../services/api";
 import { PERMISSIONS, isClient } from "../utils/permissions";
 import KanbanBoard from "../components/KanbanBoard";
+import ImportModal from "../components/ImportModal";
 
 function Tasks() {
   const { user } = useAuth();
@@ -18,6 +19,7 @@ function Tasks() {
   const navigate = useNavigate();
 
   const [viewMode, setViewMode] = useState("list"); // "list" | "kanban"
+  const [showImportModal, setShowImportModal] = useState(false);
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
@@ -413,6 +415,11 @@ function Tasks() {
             </button>
           </div>
           {hasPermission(PERMISSIONS.TASK_CREATE) && !isClient(user) && (
+            <Button variant="outline-secondary" onClick={() => setShowImportModal(true)} style={{ marginRight: 8 }}>
+              Import Excel
+            </Button>
+          )}
+          {hasPermission(PERMISSIONS.TASK_CREATE) && !isClient(user) && (
             <Button onClick={() => {
               setShowAddModal(true);
               setAssignableUsers([]);
@@ -723,6 +730,13 @@ function Tasks() {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <ImportModal
+        show={showImportModal}
+        onHide={() => setShowImportModal(false)}
+        type="tasks"
+        onSuccess={() => { setShowImportModal(false); fetchData(); }}
+      />
 
       {/* Edit Task Modal */}
       <Modal show={showEditModal} onHide={() => setShowEditModal(false)}>

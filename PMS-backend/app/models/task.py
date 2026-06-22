@@ -68,6 +68,12 @@ class Task(Base):
     billable = Column(Boolean, default=False, nullable=False)
     billing_rate = Column(Numeric(10, 2), nullable=True)
     
+    # Blocker
+    blocker_reason = Column(Text, nullable=True)
+
+    # Urgent flag
+    is_urgent = Column(Boolean, default=False, nullable=False)
+
     # Soft delete
     is_deleted = Column(Boolean, default=False)
     deleted_at = Column(DateTime, nullable=True)

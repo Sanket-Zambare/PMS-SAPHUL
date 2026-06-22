@@ -196,6 +196,7 @@ export const tasksAPI = {
   delete: (id) =>
     USE_MOCK_DATA ? mockAPI.tasks.delete(id) : api.delete(`/tasks/${id}`),
   getSubtasks: (taskId) => api.get(`/tasks/${taskId}/subtasks`),
+  toggleUrgent: (taskId) => api.post(`/tasks/${taskId}/toggle-urgent`),
 };
 
 // Project Files API (deprecated - use filesAPI instead)
@@ -316,6 +317,29 @@ export const filesAPI = {
     });
   },
   delete: (id) => api.delete(`/files/${id}`),
+};
+
+export const importAPI = {
+  importTasks: (formData) =>
+    api.post("/import/tasks", formData, { headers: { "Content-Type": undefined } }),
+  importProjects: (formData) =>
+    api.post("/import/projects", formData, { headers: { "Content-Type": undefined } }),
+  getTasksTemplate: () => api.get("/import/template/tasks"),
+  getProjectsTemplate: () => api.get("/import/template/projects"),
+};
+
+export const meetingsAPI = {
+  getAll: (params = {}) => {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== null && v !== undefined) q.append(k, v); });
+    return api.get(`/meetings/?${q}`);
+  },
+  getById: (id) => api.get(`/meetings/${id}`),
+  create: (data) => api.post("/meetings/", data),
+  update: (id, data) => api.put(`/meetings/${id}`, data),
+  delete: (id) => api.delete(`/meetings/${id}`),
+  addAttendee: (id, userId) => api.post(`/meetings/${id}/attendees`, { user_id: userId }),
+  removeAttendee: (id, userId) => api.delete(`/meetings/${id}/attendees/${userId}`),
 };
 
 export const commentsAPI = {

@@ -321,6 +321,13 @@ function Sidebars({ isOpen = false, onClose = () => {} }) {
           </NavLink>
         </PermissionGate>
 
+        <PermissionGate permission={PERMISSIONS.TASK_VIEW}>
+          <NavLink to="/calendar" className="side-link" onClick={handleNavClick}>
+            <span className="side-icon">C</span>
+            <span>Calendar</span>
+          </NavLink>
+        </PermissionGate>
+
         <PermissionGate permission={PERMISSIONS.USER_VIEW_ALL}>
           <NavLink to="/users" className="side-link" onClick={handleNavClick}>
             <span className="side-icon">U</span>

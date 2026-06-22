@@ -8,6 +8,8 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.database import engine
 from app.routes.invitations import router as invitations
+from app.routes.import_routes import router as import_router
+from app.routes.meetings import router as meetings_router
 from app.models import Base
 from app.routes import (
     auth,
@@ -94,6 +96,12 @@ app.include_router(activity_logs)
 app.include_router(dashboard)
 app.include_router(invitations)
 app.include_router(notifications)
+app.include_router(import_router)
+app.include_router(meetings_router)
+
+# Start background scheduler for due date reminders
+from app.services.scheduler import start_scheduler
+_scheduler = start_scheduler()
 
 # Exception handlers
 @app.exception_handler(Exception)
@@ -127,6 +135,39 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 # Create the database tables
 Base.metadata.create_all(bind=engine)
+
+# Safe column migrations (idempotent via IF NOT EXISTS)
+try:
+    from sqlalchemy import text as _text
+    with engine.connect() as _conn:
+        _conn.execute(_text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS is_urgent BOOLEAN NOT NULL DEFAULT FALSE"))
+        _conn.execute(_text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS blocker_reason TEXT"))
+        _conn.execute(_text("""
+            CREATE TABLE IF NOT EXISTS meetings (
+                id SERIAL PRIMARY KEY,
+                title VARCHAR(200) NOT NULL,
+                description TEXT,
+                scheduled_at TIMESTAMP NOT NULL,
+                duration_minutes INTEGER NOT NULL DEFAULT 60,
+                meet_link VARCHAR(500),
+                is_urgent BOOLEAN NOT NULL DEFAULT FALSE,
+                project_id INTEGER REFERENCES projects(id),
+                created_by INTEGER NOT NULL REFERENCES users(id),
+                is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+        """))
+        _conn.execute(_text("""
+            CREATE TABLE IF NOT EXISTS meeting_attendees (
+                id SERIAL PRIMARY KEY,
+                meeting_id INTEGER NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+            )
+        """))
+        _conn.commit()
+except Exception:
+    pass
 
 @app.get("/")
 def root():
