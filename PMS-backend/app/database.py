@@ -16,11 +16,20 @@ import os
 # ==== LOCAL (REMOVE FOR PROD) ====
 # REMOVE OR COMMENT THIS FOR PRODUCTION
 # =========================
-DATABASE_URL = os.getenv("DATABASE_URL")
+from sqlalchemy.engine.url import make_url, URL as SA_URL
 
-# Supabase requires SSL; pooler connections need sslmode in connect_args
-_connect_args = {"sslmode": "require"} if DATABASE_URL and "supabase" in DATABASE_URL else {}
-engine = create_engine(DATABASE_URL, connect_args=_connect_args)
+_raw_url = os.getenv("DATABASE_URL", "")
+_db_password = os.getenv("DB_PASSWORD")  # plain text, no URL-encoding needed
+
+if _db_password:
+    # Use SQLAlchemy URL object so special chars in password are handled safely
+    _base = make_url(_raw_url)
+    DATABASE_URL = _base.set(password=_db_password)
+else:
+    DATABASE_URL = _raw_url
+
+_is_supabase = "supabase" in _raw_url
+engine = create_engine(DATABASE_URL, connect_args={"sslmode": "require"} if _is_supabase else {})
 
 SessionLocal = sessionmaker(
     autocommit=False,
