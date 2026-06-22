@@ -16,9 +16,11 @@ import os
 # ==== LOCAL (REMOVE FOR PROD) ====
 # REMOVE OR COMMENT THIS FOR PRODUCTION
 # =========================
-DATABASE_URL = os.getenv("DATABASE_URL")  # LOCAL ONLY - development database
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_engine(DATABASE_URL)
+# Supabase requires SSL; pooler connections need sslmode in connect_args
+_connect_args = {"sslmode": "require"} if DATABASE_URL and "supabase" in DATABASE_URL else {}
+engine = create_engine(DATABASE_URL, connect_args=_connect_args)
 
 SessionLocal = sessionmaker(
     autocommit=False,
