@@ -10,13 +10,14 @@ import { useAuth } from "../context/AuthContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { tasksAPI, projectsAPI, usersAPI, projectMembersAPI } from "../services/api";
 import { PERMISSIONS, isClient } from "../utils/permissions";
+import KanbanBoard from "../components/KanbanBoard";
 
 function Tasks() {
   const { user } = useAuth();
   const { hasPermission, permissions } = usePermissions();
   const navigate = useNavigate();
 
-
+  const [viewMode, setViewMode] = useState("list"); // "list" | "kanban"
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
@@ -300,6 +301,17 @@ function Tasks() {
     }
   };
 
+  const handleKanbanStatusChange = async (taskId, newStatus) => {
+    const progress = newStatus === "TODO" ? 0 : newStatus === "IN_PROGRESS" ? 50 : newStatus === "DONE" ? 100 : null;
+    const updates = { status: newStatus, ...(progress !== null && { progress }) };
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t)));
+    try {
+      await tasksAPI.update(taskId, updates);
+    } catch {
+      fetchData();
+    }
+  };
+
   const openEditTaskModal = (task) => {
     setEditingTask({
       ...task,
@@ -383,20 +395,38 @@ function Tasks() {
               : "All tasks across projects"}
           </p>
         </div>
-        {hasPermission(PERMISSIONS.TASK_CREATE) && !isClient(user) && (
-          <Button onClick={() => {
-            setShowAddModal(true);
-            setAssignableUsers([]);
-            setNewTask({
-              title: "",
-              description: "",
-              project_id: "",
-              assigned_to: "",
-              start_date: "",
-              due_date: "",
-            });
-          }}>Add Task</Button>
-        )}
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <div className="segment-group" style={{ marginBottom: 0 }}>
+            <button
+              className={viewMode === "list" ? "seg-btn seg-btn-active" : "seg-btn"}
+              onClick={() => setViewMode("list")}
+              title="List view"
+            >
+              ☰ List
+            </button>
+            <button
+              className={viewMode === "kanban" ? "seg-btn seg-btn-active" : "seg-btn"}
+              onClick={() => setViewMode("kanban")}
+              title="Kanban board"
+            >
+              ⊟ Board
+            </button>
+          </div>
+          {hasPermission(PERMISSIONS.TASK_CREATE) && !isClient(user) && (
+            <Button onClick={() => {
+              setShowAddModal(true);
+              setAssignableUsers([]);
+              setNewTask({
+                title: "",
+                description: "",
+                project_id: "",
+                assigned_to: "",
+                start_date: "",
+                due_date: "",
+              });
+            }}>Add Task</Button>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -437,142 +467,151 @@ function Tasks() {
         </Button>
       </div>
 
-      <div className="table-surface">
-        <Table hover responsive className="modern-table">
-          <thead>
-            <tr>
-              <th>Task</th>
-              <th>Project</th>
-              <th>Assigned To</th>
-              <th>Status</th>
-              <th>Review Status</th>
-              <th>Approval Status</th>
-              <th>Progress</th>
-              <th>Start Date</th>
-              <th>Due Date</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredTasks.length === 0 ? (
+      {viewMode === "kanban" ? (
+        <KanbanBoard
+          tasks={filteredTasks}
+          getProjectName={getProjectName}
+          getUserName={getUserName}
+          onStatusChange={handleKanbanStatusChange}
+        />
+      ) : (
+        <div className="table-surface">
+          <Table hover responsive className="modern-table">
+            <thead>
               <tr>
-                <td colSpan="10" className="text-center py-4">
-                  <div className="text-muted">
-                    {loading ? "Loading tasks..." : "No tasks found"}
-                  </div>
-                  {!loading && (
-                    <Button variant="outline-primary" size="sm" className="mt-2" onClick={handleRetry}>
-                      Refresh
-                    </Button>
-                  )}
-                </td>
+                <th>Task</th>
+                <th>Project</th>
+                <th>Assigned To</th>
+                <th>Status</th>
+                <th>Review Status</th>
+                <th>Approval Status</th>
+                <th>Progress</th>
+                <th>Start Date</th>
+                <th>Due Date</th>
+                <th>Actions</th>
               </tr>
-            ) : (
-              filteredTasks.map((task) => (
-                <tr key={task.id}>
-                  <td className="fw-semibold">{task.title}</td>
-                  <td>{getProjectName(task.project_id)}</td>
-                  <td>{getUserName(task.assigned_to)}</td>
-                  <td>
-                    <span className={getStatusClass(task.status)}>
-                      {getStatusLabel(task.status)}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={getReviewStatusClass(task.review_status)}>
-                      {getReviewStatusLabel(task.review_status)}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={getApprovalStatusClass(task.approval_status)}>
-                      {getApprovalStatusLabel(task.approval_status)}
-                    </span>
-                  </td>
-                  <td>{(isNaN(task.progress) ? 0 : parseFloat(task.progress)).toFixed(0)}%</td>
-                  <td>
-                    {task.start_date
-                      ? new Date(task.start_date).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })
-                      : "N/A"}
-                  </td>
-                  <td>
-                    {task.due_date
-                      ? new Date(task.due_date).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })
-                      : "N/A"}
-                  </td>
-                  <td>
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      className="me-2"
-                      onClick={() => navigate(`/tasks/${task.id}`)}
-                    >
-                      View
-                    </Button>
-                    {(hasPermission(PERMISSIONS.TASK_EDIT) ||
-                      task.assigned_to === user?.id) && (
-                      <Button
-                        variant="outline-secondary"
-                        size="sm"
-                        className="me-2"
-                        onClick={() => openEditTaskModal(task)}
-                      >
-                        Edit
-                      </Button>
-                    )}
-                    {task.assigned_to === user?.id && task.status === "DONE" && task.approval_status === "NONE" && (
-                      <Button
-                        variant="outline-info"
-                        size="sm"
-                        className="me-2"
-                        onClick={() => handleRequestApproval(task.id)}
-                      >
-                        Request Approval
-                      </Button>
-                    )}
-                    {hasPermission(PERMISSIONS.TASK_APPROVE) && task.approval_status === "PENDING" && (
-                      <>
-                        <Button
-                          variant="outline-success"
-                          size="sm"
-                          className="me-2"
-                          onClick={() => handleApproveTask(task.id)}
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          variant="outline-danger"
-                          size="sm"
-                          className="me-2"
-                          onClick={() => handleRejectTask(task.id)}
-                        >
-                          Reject
-                        </Button>
-                      </>
-                    )}
-                    {hasPermission(PERMISSIONS.TASK_DELETE) && (
-                      <Button
-                        variant="outline-danger"
-                        size="sm"
-                        onClick={() => handleDeleteTask(task.id)}
-                      >
-                        Delete
+            </thead>
+            <tbody>
+              {filteredTasks.length === 0 ? (
+                <tr>
+                  <td colSpan="10" className="text-center py-4">
+                    <div className="text-muted">
+                      {loading ? "Loading tasks..." : "No tasks found"}
+                    </div>
+                    {!loading && (
+                      <Button variant="outline-primary" size="sm" className="mt-2" onClick={handleRetry}>
+                        Refresh
                       </Button>
                     )}
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </Table>
-      </div>
+              ) : (
+                filteredTasks.map((task) => (
+                  <tr key={task.id}>
+                    <td className="fw-semibold">{task.title}</td>
+                    <td>{getProjectName(task.project_id)}</td>
+                    <td>{getUserName(task.assigned_to)}</td>
+                    <td>
+                      <span className={getStatusClass(task.status)}>
+                        {getStatusLabel(task.status)}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={getReviewStatusClass(task.review_status)}>
+                        {getReviewStatusLabel(task.review_status)}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={getApprovalStatusClass(task.approval_status)}>
+                        {getApprovalStatusLabel(task.approval_status)}
+                      </span>
+                    </td>
+                    <td>{(isNaN(task.progress) ? 0 : parseFloat(task.progress)).toFixed(0)}%</td>
+                    <td>
+                      {task.start_date
+                        ? new Date(task.start_date).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })
+                        : "N/A"}
+                    </td>
+                    <td>
+                      {task.due_date
+                        ? new Date(task.due_date).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })
+                        : "N/A"}
+                    </td>
+                    <td>
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        className="me-2"
+                        onClick={() => navigate(`/tasks/${task.id}`)}
+                      >
+                        View
+                      </Button>
+                      {(hasPermission(PERMISSIONS.TASK_EDIT) ||
+                        task.assigned_to === user?.id) && (
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          className="me-2"
+                          onClick={() => openEditTaskModal(task)}
+                        >
+                          Edit
+                        </Button>
+                      )}
+                      {task.assigned_to === user?.id && task.status === "DONE" && task.approval_status === "NONE" && (
+                        <Button
+                          variant="outline-info"
+                          size="sm"
+                          className="me-2"
+                          onClick={() => handleRequestApproval(task.id)}
+                        >
+                          Request Approval
+                        </Button>
+                      )}
+                      {hasPermission(PERMISSIONS.TASK_APPROVE) && task.approval_status === "PENDING" && (
+                        <>
+                          <Button
+                            variant="outline-success"
+                            size="sm"
+                            className="me-2"
+                            onClick={() => handleApproveTask(task.id)}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            variant="outline-danger"
+                            size="sm"
+                            className="me-2"
+                            onClick={() => handleRejectTask(task.id)}
+                          >
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                      {hasPermission(PERMISSIONS.TASK_DELETE) && (
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
+                          onClick={() => handleDeleteTask(task.id)}
+                        >
+                          Delete
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </Table>
+        </div>
+      )}
 
       {/* Add Task Modal */}
       <Modal show={showAddModal} onHide={() => setShowAddModal(false)}>
